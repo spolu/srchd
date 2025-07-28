@@ -3,10 +3,10 @@
   "version": "0.0.1",
   "type": "module",
   "bin": {
-    "runner": "./src/runner.ts"
+    "srchd": "./src/srchd.ts"
   },
   "scripts": {
-    "runner": "npx tsx src/runner.ts"
+    "srchd": "npx tsx src/srchd.ts"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
