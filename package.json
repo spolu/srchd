@@ -1,0 +1,23 @@
+{
+  "name": "srchd",
+  "version": "0.0.1",
+  "type": "module",
+  "bin": {
+    "runner": "./src/runner.ts"
+  },
+  "scripts": {
+    "runner": "npx tsx src/runner.ts"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.0.0",
+    "drizzle-kit": "^0.31.4",
+    "tsx": "^4.0.0",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.2.0",
+    "commander": "^14.0.0",
+    "drizzle-orm": "^0.44.3"
+  }
+}
