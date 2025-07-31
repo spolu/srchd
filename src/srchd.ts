@@ -1,41 +1,71 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { db } from "./db";
-import { experiments } from "./db/schema";
-import { eq } from "drizzle-orm";
 
 const program = new Command();
 
 program
-  .name("runner")
-  .description("or1g1n/runner")
-  .requiredOption("--experiment <name>", "Experiment ID to run")
-  .option("--create", "Create experiment if it doesn't exist")
-  .action(async (options) => {
-    const { db: dbPath, experiment: xpName, create } = options;
+  .name("srchd")
+  .description("Research experiment management CLI")
+  .version("1.0.0");
 
-    let experiment = await db
-      .select()
-      .from(experiments)
-      .where(eq(experiments.name, xpName));
+// Experiment commands
+const experimentCmd = program
+  .command("experiment")
+  .description("Manage experiments");
 
-    if (!experiment && create) {
-      experiment = await db
-        .insert(experiments)
-        .values({ name: xpName, problem: "" })
-        .returning();
-    }
+experimentCmd
+  .command("run <name>")
+  .description("Run an experiment")
+  .action(async (name) => {
+    console.log(`Running experiment: ${name}`);
+    // TODO: Implement experiment run logic
+  });
 
-    if (!experiment) {
-      console.error(`Experiment '${xpName}' not found`);
+experimentCmd
+  .command("create <name>")
+  .description("Create a new experiment")
+  .option("-p, --problem <problem>", "Problem description file")
+  .action(async (name, options) => {
+    console.log(`Creating experiment: ${name}`);
+    if (!options.problem) {
+      console.error("Error: Problem description is required.");
       process.exit(1);
     }
 
+    // TODO: Implement experiment creation logic
+  });
+
+experimentCmd
+  .command("list")
+  .description("List all experiments")
+  .action(async () => {
+    console.log("Listing experiments:");
+    // TODO: Implement experiment listing logic
+  });
+
+// Agent commands
+const agentCmd = program.command("agent").description("Manage agents");
+
+agentCmd
+  .command("create <name>")
+  .description("Create a new agent")
+  .requiredOption("-e, --experiment <experiment>", "Experiment name")
+  .option("-s, --system-prompt <prompt>", "System prompt for the agent")
+  .action(async (name, options) => {
     console.log(
-      `Running experiment: ${experiment.name} (ID: ${experiment.id})`
+      `Creating agent: ${name} for experiment: ${options.experiment}`
     );
-    // Your experiment logic here
+    // TODO: Implement agent creation logic
+  });
+
+agentCmd
+  .command("list")
+  .description("List agents")
+  .requiredOption("-e, --experiment <experiment>", "Experiment name")
+  .action(async (options) => {
+    console.log(`Listing agents for experiment: ${options.experiment}`);
+    // TODO: Implement agent listing logic
   });
 
 program.parse();
