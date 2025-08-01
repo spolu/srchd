@@ -1,4 +1,4 @@
-export type ErrorCode = "reading_file_error";
+export type ErrorCode = "reading_file_error" | "not_found_error";
 
 export class SrchdError<T extends ErrorCode = ErrorCode> extends Error {
   constructor(

@@ -38,16 +38,12 @@ experimentCmd
 experimentCmd
   .command("create <name>")
   .description("Create a new experiment")
-  .option("-p, --problem <problem>", "Problem description file")
+  .requiredOption("-p, --problem <problem>", "Problem description file path")
   .action(async (name, options) => {
     console.log(`Creating experiment: ${name}`);
-    if (!options.problem || typeof options.problem !== "string") {
-      console.error("Error: Problem description is required.");
-      process.exit(1);
-    }
-
+    
+    // Read problem from file
     const problem = await readFileContent(options.problem);
-
     if (problem.isErr()) {
       return exitWithError(problem);
     }
@@ -97,13 +93,13 @@ agentCmd
     // Find the experiment first
     const experiment = await ExperimentResource.findByName(options.experiment);
     if (!experiment) {
-      return exitWithError(new Err(new SrchdError("reading_file_error", `Experiment '${options.experiment}' not found.`)));
+      return exitWithError(new Err(new SrchdError("not_found_error", `Experiment '${options.experiment}' not found.`)));
     }
 
     // Check if agent already exists
     const existingAgent = await AgentResource.findByName(experiment, name);
     if (existingAgent) {
-      return exitWithError(new Err(new SrchdError("reading_file_error", `Agent '${name}' already exists in experiment '${options.experiment}'.`)));
+      return exitWithError(new Err(new SrchdError("not_found_error", `Agent '${name}' already exists in experiment '${options.experiment}'.`)));
     }
 
     const agent = await AgentResource.create(experiment, {
@@ -124,7 +120,7 @@ agentCmd
     // Find the experiment first
     const experiment = await ExperimentResource.findByName(options.experiment);
     if (!experiment) {
-      return exitWithError(new Err(new SrchdError("reading_file_error", `Experiment '${options.experiment}' not found.`)));
+      return exitWithError(new Err(new SrchdError("not_found_error", `Experiment '${options.experiment}' not found.`)));
     }
 
     const agents = await AgentResource.listByExperiment(experiment);
@@ -145,12 +141,12 @@ agentCmd
     // Find the experiment first
     const experiment = await ExperimentResource.findByName(options.experiment);
     if (!experiment) {
-      return exitWithError(new Err(new SrchdError("reading_file_error", `Experiment '${options.experiment}' not found.`)));
+      return exitWithError(new Err(new SrchdError("not_found_error", `Experiment '${options.experiment}' not found.`)));
     }
 
     const agent = await AgentResource.findByName(experiment, name);
     if (!agent) {
-      return exitWithError(new Err(new SrchdError("reading_file_error", `Agent '${name}' not found in experiment '${options.experiment}'.`)));
+      return exitWithError(new Err(new SrchdError("not_found_error", `Agent '${name}' not found in experiment '${options.experiment}'.`)));
     }
 
     console.table([agent.toJSON()]);
@@ -165,12 +161,12 @@ agentCmd
     // Find the experiment first
     const experiment = await ExperimentResource.findByName(options.experiment);
     if (!experiment) {
-      return exitWithError(new Err(new SrchdError("reading_file_error", `Experiment '${options.experiment}' not found.`)));
+      return exitWithError(new Err(new SrchdError("not_found_error", `Experiment '${options.experiment}' not found.`)));
     }
 
     const agent = await AgentResource.findByName(experiment, name);
     if (!agent) {
-      return exitWithError(new Err(new SrchdError("reading_file_error", `Agent '${name}' not found in experiment '${options.experiment}'.`)));
+      return exitWithError(new Err(new SrchdError("not_found_error", `Agent '${name}' not found in experiment '${options.experiment}'.`)));
     }
 
     await agent.delete();
