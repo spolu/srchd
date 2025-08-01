@@ -39,7 +39,7 @@ export class AgentResource {
     return new AgentResource(result[0], experiment);
   }
 
-  static async findByExperiment(experiment: ExperimentResource): Promise<AgentResource[]> {
+  static async listByExperiment(experiment: ExperimentResource): Promise<AgentResource[]> {
     const results = await db
       .select()
       .from(agents)

@@ -121,7 +121,7 @@ agentCmd
       return exitWithError(new Err(new SrchdError("reading_file_error", `Experiment '${options.experiment}' not found.`)));
     }
 
-    const agents = await AgentResource.findByExperiment(experiment);
+    const agents = await AgentResource.listByExperiment(experiment);
     
     if (agents.length === 0) {
       console.log("No agents found for this experiment.");
