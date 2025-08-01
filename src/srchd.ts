@@ -82,11 +82,17 @@ agentCmd
   .command("create <name>")
   .description("Create a new agent")
   .requiredOption("-e, --experiment <experiment>", "Experiment name")
-  .option("-s, --system-prompt <prompt>", "System prompt for the agent", "You are a helpful AI research assistant.")
+  .requiredOption("-s, --system-prompt <prompt>", "System prompt file path")
   .action(async (name, options) => {
     console.log(
       `Creating agent: ${name} for experiment: ${options.experiment}`
     );
+    
+    // Read system prompt from file
+    const systemPrompt = await readFileContent(options.systemPrompt);
+    if (systemPrompt.isErr()) {
+      return exitWithError(systemPrompt);
+    }
     
     // Find the experiment first
     const experiment = await ExperimentResource.findByName(options.experiment);
@@ -102,7 +108,7 @@ agentCmd
 
     const agent = await AgentResource.create(experiment, {
       name,
-      systemPrompt: options.systemPrompt,
+      systemPrompt: systemPrompt.value,
     });
 
     console.table([agent.toJSON()]);
@@ -150,37 +156,6 @@ agentCmd
     console.table([agent.toJSON()]);
   });
 
-agentCmd
-  .command("update <name>")
-  .description("Update an agent")
-  .requiredOption("-e, --experiment <experiment>", "Experiment name")
-  .option("-s, --system-prompt <prompt>", "New system prompt for the agent")
-  .action(async (name, options) => {
-    // Find the experiment first
-    const experiment = await ExperimentResource.findByName(options.experiment);
-    if (!experiment) {
-      return exitWithError(new Err(new SrchdError("reading_file_error", `Experiment '${options.experiment}' not found.`)));
-    }
-
-    const agent = await AgentResource.findByName(experiment, name);
-    if (!agent) {
-      return exitWithError(new Err(new SrchdError("reading_file_error", `Agent '${name}' not found in experiment '${options.experiment}'.`)));
-    }
-
-    const updateData: Partial<{ systemPrompt: string }> = {};
-    if (options.systemPrompt) {
-      updateData.systemPrompt = options.systemPrompt;
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      console.log("No updates provided.");
-      return;
-    }
-
-    await agent.update(updateData);
-    console.log(`Agent '${name}' updated successfully.`);
-    console.table([agent.toJSON()]);
-  });
 
 agentCmd
   .command("delete <name>")
