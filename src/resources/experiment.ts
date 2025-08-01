@@ -68,4 +68,13 @@ export class ExperimentResource {
   toJSON() {
     return this.data;
   }
+
+  // Getters for common properties
+  get id() {
+    return this.data.id;
+  }
+
+  get name() {
+    return this.data.name;
+  }
 }

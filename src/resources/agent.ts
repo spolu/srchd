@@ -1,24 +1,27 @@
 import { db } from "../db";
 import { agents } from "../db/schema";
 import { eq, InferSelectModel, InferInsertModel, and } from "drizzle-orm";
+import { ExperimentResource } from "./experiment";
 
 type Agent = InferSelectModel<typeof agents>;
 
 export class AgentResource {
   private data: Agent;
+  private experiment: ExperimentResource;
 
-  private constructor(data: Agent) {
+  private constructor(data: Agent, experiment: ExperimentResource) {
     this.data = data;
+    this.experiment = experiment;
   }
 
-  static async findByName(name: string, experimentId: number): Promise<AgentResource | null> {
+  static async findByName(experiment: ExperimentResource, name: string): Promise<AgentResource | null> {
     const result = await db
       .select()
       .from(agents)
-      .where(and(eq(agents.name, name), eq(agents.experiment, experimentId)))
+      .where(and(eq(agents.name, name), eq(agents.experiment, experiment.id)))
       .limit(1);
 
-    return result[0] ? new AgentResource(result[0]) : null;
+    return result[0] ? new AgentResource(result[0], experiment) : null;
   }
 
   static async findById(id: number): Promise<AgentResource | null> {
@@ -28,33 +31,38 @@ export class AgentResource {
       .where(eq(agents.id, id))
       .limit(1);
 
-    return result[0] ? new AgentResource(result[0]) : null;
+    if (!result[0]) return null;
+    
+    const experiment = await ExperimentResource.findById(result[0].experiment);
+    if (!experiment) return null;
+    
+    return new AgentResource(result[0], experiment);
   }
 
-  static async findByExperiment(experimentId: number): Promise<AgentResource[]> {
+  static async findByExperiment(experiment: ExperimentResource): Promise<AgentResource[]> {
     const results = await db
       .select()
       .from(agents)
-      .where(eq(agents.experiment, experimentId));
+      .where(eq(agents.experiment, experiment.id));
 
-    return results.map((data) => new AgentResource(data));
+    return results.map((data) => new AgentResource(data, experiment));
   }
 
   static async create(
+    experiment: ExperimentResource,
     data: Omit<
       InferInsertModel<typeof agents>,
-      "id" | "created" | "updated"
+      "id" | "created" | "updated" | "experiment"
     >
   ): Promise<AgentResource> {
-    const [created] = await db.insert(agents).values(data).returning();
+    const [created] = await db.insert(agents).values({
+      ...data,
+      experiment: experiment.id
+    }).returning();
 
-    return new AgentResource(created);
+    return new AgentResource(created, experiment);
   }
 
-  static async all(): Promise<AgentResource[]> {
-    const results = await db.select().from(agents);
-    return results.map((data) => new AgentResource(data));
-  }
 
   async update(
     data: Partial<Omit<InferInsertModel<typeof agents>, "id" | "created">>
@@ -85,6 +93,10 @@ export class AgentResource {
 
   get name() {
     return this.data.name;
+  }
+
+  get experiment() {
+    return this.experiment;
   }
 
   get experimentId() {
