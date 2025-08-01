@@ -18,7 +18,7 @@ export class AgentResource {
     const result = await db
       .select()
       .from(agents)
-      .where(and(eq(agents.name, name), eq(agents.experiment, experiment.id)))
+      .where(and(eq(agents.name, name), eq(agents.experiment, experiment.toJSON().id)))
       .limit(1);
 
     return result[0] ? new AgentResource(result[0], experiment) : null;
@@ -43,7 +43,7 @@ export class AgentResource {
     const results = await db
       .select()
       .from(agents)
-      .where(eq(agents.experiment, experiment.id));
+      .where(eq(agents.experiment, experiment.toJSON().id));
 
     return results.map((data) => new AgentResource(data, experiment));
   }
@@ -57,7 +57,7 @@ export class AgentResource {
   ): Promise<AgentResource> {
     const [created] = await db.insert(agents).values({
       ...data,
-      experiment: experiment.id
+      experiment: experiment.toJSON().id
     }).returning();
 
     return new AgentResource(created, experiment);
@@ -86,24 +86,7 @@ export class AgentResource {
     return this.data;
   }
 
-  // Getters for common properties
-  get id() {
-    return this.data.id;
-  }
-
-  get name() {
-    return this.data.name;
-  }
-
   get experiment() {
     return this.experiment;
-  }
-
-  get experimentId() {
-    return this.data.experiment;
-  }
-
-  get systemPrompt() {
-    return this.data.systemPrompt;
   }
 }
