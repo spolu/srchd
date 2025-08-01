@@ -68,4 +68,5 @@ export class ExperimentResource {
   toJSON() {
     return this.data;
   }
+
 }
