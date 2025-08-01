@@ -25,7 +25,7 @@ This is a research experiment management CLI tool with the following core compon
   - `publications`: Research publications with submission status
   - `citations`: Publication citation relationships
   - `reviews`: Peer review system with grades (STRONG_ACCEPT/ACCEPT/REJECT/STRONG_REJECT)
-- **Database location**: `~/stash/or1g1n/db.sqlite`
+- **Database location**: `/home/spolu/stash/srchd/db.sqlite`
 
 ### CLI Interface (`src/srchd.ts`)
 - Built with Commander.js

@@ -1,6 +1,18 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+import { readFileContent } from "./lib/fs";
+import { SrchdError } from "./lib/error";
+import { Err } from "./lib/result";
+import { ExperimentResource } from "./resources/experiment";
+
+const exitWithError = (err: Err<SrchdError>) => {
+  console.error(`\x1b[31mError: ${err.error.message}\x1b[0m`);
+  if (err.error.cause) {
+    console.error(`\x1b[31mCause: ${err.error.cause.message}\x1b[0m`);
+  }
+  process.exit(1);
+};
 
 const program = new Command();
 
@@ -28,12 +40,23 @@ experimentCmd
   .option("-p, --problem <problem>", "Problem description file")
   .action(async (name, options) => {
     console.log(`Creating experiment: ${name}`);
-    if (!options.problem) {
+    if (!options.problem || typeof options.problem !== "string") {
       console.error("Error: Problem description is required.");
       process.exit(1);
     }
 
-    // TODO: Implement experiment creation logic
+    const problem = await readFileContent(options.problem);
+
+    if (problem.isErr()) {
+      return exitWithError(problem);
+    }
+
+    const experiment = await ExperimentResource.create({
+      name,
+      problem: problem.value,
+    });
+
+    console.table([experiment.toJSON()]);
   });
 
 experimentCmd
