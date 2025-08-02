@@ -2,23 +2,33 @@ import { db } from "../db";
 import { agents } from "../db/schema";
 import { eq, InferSelectModel, InferInsertModel, and } from "drizzle-orm";
 import { ExperimentResource } from "./experiment";
+import { Err, Ok, Result } from "../lib/result";
+import { normalizeError, SrchdError } from "../lib/error";
 
 type Agent = InferSelectModel<typeof agents>;
 
 export class AgentResource {
   private data: Agent;
-  private experiment: ExperimentResource;
+  experiment: ExperimentResource;
 
   private constructor(data: Agent, experiment: ExperimentResource) {
     this.data = data;
     this.experiment = experiment;
   }
 
-  static async findByName(experiment: ExperimentResource, name: string): Promise<AgentResource | null> {
+  static async findByName(
+    experiment: ExperimentResource,
+    name: string
+  ): Promise<AgentResource | null> {
     const result = await db
       .select()
       .from(agents)
-      .where(and(eq(agents.name, name), eq(agents.experiment, experiment.toJSON().id)))
+      .where(
+        and(
+          eq(agents.name, name),
+          eq(agents.experiment, experiment.toJSON().id)
+        )
+      )
       .limit(1);
 
     return result[0] ? new AgentResource(result[0], experiment) : null;
@@ -32,14 +42,16 @@ export class AgentResource {
       .limit(1);
 
     if (!result[0]) return null;
-    
+
     const experiment = await ExperimentResource.findById(result[0].experiment);
     if (!experiment) return null;
-    
+
     return new AgentResource(result[0], experiment);
   }
 
-  static async listByExperiment(experiment: ExperimentResource): Promise<AgentResource[]> {
+  static async listByExperiment(
+    experiment: ExperimentResource
+  ): Promise<AgentResource[]> {
     const results = await db
       .select()
       .from(agents)
@@ -54,15 +66,27 @@ export class AgentResource {
       InferInsertModel<typeof agents>,
       "id" | "created" | "updated" | "experiment"
     >
-  ): Promise<AgentResource> {
-    const [created] = await db.insert(agents).values({
-      ...data,
-      experiment: experiment.toJSON().id
-    }).returning();
+  ): Promise<Result<AgentResource, SrchdError>> {
+    try {
+      const [created] = await db
+        .insert(agents)
+        .values({
+          ...data,
+          experiment: experiment.toJSON().id,
+        })
+        .returning();
 
-    return new AgentResource(created, experiment);
+      return new Ok(new AgentResource(created, experiment));
+    } catch (error) {
+      return new Err(
+        new SrchdError(
+          "resource_creation_error",
+          "Failed to create agent",
+          normalizeError(error)
+        )
+      );
+    }
   }
-
 
   async update(
     data: Partial<Omit<InferInsertModel<typeof agents>, "id" | "created">>
@@ -85,8 +109,5 @@ export class AgentResource {
   toJSON() {
     return this.data;
   }
-
-  get experiment() {
-    return this.experiment;
-  }
 }
+

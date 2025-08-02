@@ -41,7 +41,7 @@ experimentCmd
   .requiredOption("-p, --problem <problem>", "Problem description file path")
   .action(async (name, options) => {
     console.log(`Creating experiment: ${name}`);
-    
+
     // Read problem from file
     const problem = await readFileContent(options.problem);
     if (problem.isErr()) {
@@ -53,7 +53,11 @@ experimentCmd
       problem: problem.value,
     });
 
-    console.table([experiment.toJSON()]);
+    if (experiment.isErr()) {
+      return exitWithError(experiment);
+    }
+
+    console.table([experiment.value.toJSON()]);
   });
 
 experimentCmd
@@ -62,13 +66,20 @@ experimentCmd
   .action(async () => {
     console.log("Listing experiments:");
     const experiments = await ExperimentResource.all();
-    
+
     if (experiments.length === 0) {
       console.log("No experiments found.");
       return;
     }
 
-    console.table(experiments.map(exp => exp.toJSON()));
+    console.table(
+      experiments.map((exp) => {
+        const e = exp.toJSON();
+        e.problem =
+          e.problem.substring(0, 32) + (e.problem.length > 32 ? "..." : "");
+        return e;
+      })
+    );
   });
 
 // Agent commands
@@ -78,36 +89,41 @@ agentCmd
   .command("create <name>")
   .description("Create a new agent")
   .requiredOption("-e, --experiment <experiment>", "Experiment name")
-  .requiredOption("-s, --system-prompt <prompt>", "System prompt file path")
+  .requiredOption("-s, --prompt <prompt>", "Prompt file path")
   .action(async (name, options) => {
     console.log(
       `Creating agent: ${name} for experiment: ${options.experiment}`
     );
-    
+
     // Read system prompt from file
-    const systemPrompt = await readFileContent(options.systemPrompt);
-    if (systemPrompt.isErr()) {
-      return exitWithError(systemPrompt);
+    const prompt = await readFileContent(options.prompt);
+    if (prompt.isErr()) {
+      return exitWithError(prompt);
     }
-    
+
     // Find the experiment first
     const experiment = await ExperimentResource.findByName(options.experiment);
     if (!experiment) {
-      return exitWithError(new Err(new SrchdError("not_found_error", `Experiment '${options.experiment}' not found.`)));
-    }
-
-    // Check if agent already exists
-    const existingAgent = await AgentResource.findByName(experiment, name);
-    if (existingAgent) {
-      return exitWithError(new Err(new SrchdError("not_found_error", `Agent '${name}' already exists in experiment '${options.experiment}'.`)));
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `Experiment '${options.experiment}' not found.`
+          )
+        )
+      );
     }
 
     const agent = await AgentResource.create(experiment, {
       name,
-      systemPrompt: systemPrompt.value,
+      prompt: prompt.value,
     });
 
-    console.table([agent.toJSON()]);
+    if (agent.isErr()) {
+      return exitWithError(agent);
+    }
+
+    console.table([agent.value.toJSON()]);
   });
 
 agentCmd
@@ -116,21 +132,28 @@ agentCmd
   .requiredOption("-e, --experiment <experiment>", "Experiment name")
   .action(async (options) => {
     console.log(`Listing agents for experiment: ${options.experiment}`);
-    
+
     // Find the experiment first
     const experiment = await ExperimentResource.findByName(options.experiment);
     if (!experiment) {
-      return exitWithError(new Err(new SrchdError("not_found_error", `Experiment '${options.experiment}' not found.`)));
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `Experiment '${options.experiment}' not found.`
+          )
+        )
+      );
     }
 
     const agents = await AgentResource.listByExperiment(experiment);
-    
+
     if (agents.length === 0) {
       console.log("No agents found for this experiment.");
       return;
     }
 
-    console.table(agents.map(agent => agent.toJSON()));
+    console.table(agents.map((agent) => agent.toJSON()));
   });
 
 agentCmd
@@ -141,17 +164,30 @@ agentCmd
     // Find the experiment first
     const experiment = await ExperimentResource.findByName(options.experiment);
     if (!experiment) {
-      return exitWithError(new Err(new SrchdError("not_found_error", `Experiment '${options.experiment}' not found.`)));
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `Experiment '${options.experiment}' not found.`
+          )
+        )
+      );
     }
 
     const agent = await AgentResource.findByName(experiment, name);
     if (!agent) {
-      return exitWithError(new Err(new SrchdError("not_found_error", `Agent '${name}' not found in experiment '${options.experiment}'.`)));
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `Agent '${name}' not found in experiment '${options.experiment}'.`
+          )
+        )
+      );
     }
 
     console.table([agent.toJSON()]);
   });
-
 
 agentCmd
   .command("delete <name>")
@@ -161,12 +197,26 @@ agentCmd
     // Find the experiment first
     const experiment = await ExperimentResource.findByName(options.experiment);
     if (!experiment) {
-      return exitWithError(new Err(new SrchdError("not_found_error", `Experiment '${options.experiment}' not found.`)));
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `Experiment '${options.experiment}' not found.`
+          )
+        )
+      );
     }
 
     const agent = await AgentResource.findByName(experiment, name);
     if (!agent) {
-      return exitWithError(new Err(new SrchdError("not_found_error", `Agent '${name}' not found in experiment '${options.experiment}'.`)));
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `Agent '${name}' not found in experiment '${options.experiment}'.`
+          )
+        )
+      );
     }
 
     await agent.delete();

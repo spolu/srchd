@@ -32,7 +32,7 @@ export const agents = sqliteTable(
       .notNull()
       .references(() => experiments.id),
     name: text("name").notNull(),
-    systemPrompt: text("system_prompt").notNull(),
+    prompt: text("prompt").notNull(),
   },
   (t) => [unique().on(t.name, t.experiment)]
 );
