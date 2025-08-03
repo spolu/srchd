@@ -16,6 +16,8 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.1",
+    "@types/json-schema": "^7.0.15",
     "better-sqlite3": "^12.2.0",
     "commander": "^14.0.0",
     "drizzle-orm": "^0.44.3"
