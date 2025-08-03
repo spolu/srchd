@@ -7,16 +7,17 @@ export class Runner {
   private experiment: ExperimentResource;
   private agent: AgentResource;
   private mcpClients: Client[];
-  private model: BaseModel;
+  // private model: BaseModel;
 
   constructor(
     experiment: ExperimentResource,
     agent: AgentResource,
     mcpClients: Client[],
-    model: BaseModel
+    // model: BaseModel
   ) {
     this.experiment = experiment;
     this.agent = agent;
     this.mcpClients = mcpClients;
+    // this.model = model;
   }
 }

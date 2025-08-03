@@ -6,6 +6,10 @@ import { SrchdError } from "./lib/error";
 import { Err } from "./lib/result";
 import { ExperimentResource } from "./resources/experiment";
 import { AgentResource } from "./resources/agent";
+import { Runner } from "./runner";
+import { createDummyClientServerPair, createDummyServer } from "./tools/dummy";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(`\x1b[31mError: ${err.error.message}\x1b[0m`);
@@ -86,11 +90,18 @@ experimentCmd
 const agentCmd = program.command("agent").description("Manage agents");
 
 agentCmd
-  .command("create <name>")
+  .command("create")
   .description("Create a new agent")
   .requiredOption("-e, --experiment <experiment>", "Experiment name")
-  .requiredOption("-s, --prompt <prompt>", "Prompt file path")
-  .action(async (name, options) => {
+  .requiredOption("-p, --prompt <prompt>", "Prompt file path")
+  .option("-n, --name <name>", "Agent name")
+  .action(async (options) => {
+    let name = options.name;
+
+    if (!name) {
+      name = `${Math.random().toString(36).substring(2, 8)}`;
+    }
+
     console.log(
       `Creating agent: ${name} for experiment: ${options.experiment}`
     );
@@ -123,7 +134,14 @@ agentCmd
       return exitWithError(agent);
     }
 
-    console.table([agent.value.toJSON()]);
+    console.table(
+      [agent.value].map((agent) => {
+        const a = agent.toJSON();
+        a.prompt =
+          a.prompt.substring(0, 32) + (a.prompt.length > 32 ? "..." : "");
+        return a;
+      })
+    );
   });
 
 agentCmd
@@ -153,7 +171,14 @@ agentCmd
       return;
     }
 
-    console.table(agents.map((agent) => agent.toJSON()));
+    console.table(
+      agents.map((agent) => {
+        const a = agent.toJSON();
+        a.prompt =
+          a.prompt.substring(0, 32) + (a.prompt.length > 32 ? "..." : "");
+        return a;
+      })
+    );
   });
 
 agentCmd
@@ -221,6 +246,46 @@ agentCmd
 
     await agent.delete();
     console.log(`Agent '${name}' deleted successfully.`);
+  });
+
+agentCmd
+  .command("test <name>")
+  .description("Test an agent")
+  .requiredOption("-e, --experiment <experiment>", "Experiment name")
+  .action(async (name, options) => {
+    // Find the experiment first
+    const experiment = await ExperimentResource.findByName(options.experiment);
+    if (!experiment) {
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `Experiment '${options.experiment}' not found.`
+          )
+        )
+      );
+    }
+
+    const agent = await AgentResource.findByName(experiment, name);
+    if (!agent) {
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `Agent '${name}' not found in experiment '${options.experiment}'.`
+          )
+        )
+      );
+    }
+
+    console.log(`Testing agent: ${name}`);
+
+    const [dummyClient] = await createDummyClientServerPair();
+
+    const tools = await dummyClient.listTools();
+    console.log(JSON.stringify(tools, null, 2));
+
+    const runner = new Runner(experiment, agent, [dummyClient]);
   });
 
 program.parse();
