@@ -8,6 +8,11 @@ export interface TextContent {
   content: string;
 }
 
+export interface ThinkingContent {
+  type: "thinking";
+  content: string;
+}
+
 export interface ToolUse {
   type: "tool_use";
   id: string;
@@ -24,13 +29,14 @@ export interface ToolResult {
 
 export interface Message {
   role: "user" | "agent";
-  content: (TextContent | ToolUse | ToolResult)[];
+  content: (TextContent | ThinkingContent | ToolUse | ToolResult)[];
 }
 
 export interface ModelConfig {
   temperature?: number;
   maxTokens?: number;
   model: string;
+  thinking?: boolean;
 }
 
 export interface Tool {
@@ -52,3 +58,5 @@ export abstract class BaseModel {
     tools: Tool[]
   ): Promise<Message>;
 }
+
+export { AnthropicModel } from "./anthropic-model.js";
