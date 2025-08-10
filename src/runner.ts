@@ -54,8 +54,6 @@ export class Runner {
   }
 
   async tick(): Promise<Result<void, SrchdError>> {
-    // Implement the logic for a single tick of the runner
-    console.log(`Running tick for agent: ${this.agent.toJSON().name}`);
     const tools = await this.tools();
     if (tools.isErr()) {
       return tools;
