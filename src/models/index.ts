@@ -20,6 +20,7 @@ export interface ToolUse {
 export interface ToolResult {
   type: "tool_result";
   toolUseId: string;
+  toolUseName: string;
   content: string;
   isError: boolean;
 }

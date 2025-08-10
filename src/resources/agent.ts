@@ -110,4 +110,3 @@ export class AgentResource {
     return this.data;
   }
 }
-

@@ -9,6 +9,7 @@ import { AgentResource } from "./resources/agent";
 import { Runner } from "./runner";
 import { createDummyClientServerPair } from "./tools/dummy";
 import { AnthropicModel } from "./models/anthropic";
+import { GeminiModel } from "./models/gemini";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(`\x1b[31mError: ${err.error.message}\x1b[0m`);
@@ -287,7 +288,8 @@ agentCmd
 
     const [dummyClient] = await createDummyClientServerPair();
 
-    const model = new AnthropicModel({}, "claude-sonnet-4-20250514");
+    // const model = new AnthropicModel({}, "claude-sonnet-4-20250514");
+    const model = new GeminiModel({}, "gemini-2.5-flash-lite");
     const runner = new Runner(experiment, agent, [dummyClient], model);
 
     console.log(await runner.tick());
