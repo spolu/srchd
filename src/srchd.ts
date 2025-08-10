@@ -287,11 +287,10 @@ agentCmd
 
     const [dummyClient] = await createDummyClientServerPair();
 
-    const tools = await dummyClient.listTools();
-    console.log(JSON.stringify(tools, null, 2));
-
     const model = new AnthropicModel({}, "claude-sonnet-4-20250514");
     const runner = new Runner(experiment, agent, [dummyClient], model);
+
+    console.log(await runner.tick());
   });
 
 program.parse();

@@ -36,7 +36,7 @@ export interface ModelConfig {
 
 export interface Tool {
   name: string;
-  description: string;
+  description?: string;
   inputSchema: JSONSchema;
 }
 
