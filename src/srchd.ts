@@ -7,9 +7,8 @@ import { Err } from "./lib/result";
 import { ExperimentResource } from "./resources/experiment";
 import { AgentResource } from "./resources/agent";
 import { Runner } from "./runner";
-import { createDummyClientServerPair, createDummyServer } from "./tools/dummy";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { createDummyClientServerPair } from "./tools/dummy";
+import { AnthropicModel } from "./models/anthropic";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(`\x1b[31mError: ${err.error.message}\x1b[0m`);
@@ -42,12 +41,15 @@ experimentCmd
 experimentCmd
   .command("create <name>")
   .description("Create a new experiment")
-  .requiredOption("-p, --problem <problem>", "Problem description file path")
+  .requiredOption(
+    "-p, --problem <problem_file>",
+    "Problem description file path"
+  )
   .action(async (name, options) => {
     console.log(`Creating experiment: ${name}`);
 
     // Read problem from file
-    const problem = await readFileContent(options.problem);
+    const problem = await readFileContent(options.problem_file);
     if (problem.isErr()) {
       return exitWithError(problem);
     }
@@ -93,7 +95,10 @@ agentCmd
   .command("create")
   .description("Create a new agent")
   .requiredOption("-e, --experiment <experiment>", "Experiment name")
-  .requiredOption("-p, --prompt <prompt>", "Prompt file path")
+  .requiredOption(
+    "-s, --system <system_prompt_file>",
+    "System prompt file path"
+  )
   .option("-n, --name <name>", "Agent name")
   .action(async (options) => {
     let name = options.name;
@@ -107,9 +112,9 @@ agentCmd
     );
 
     // Read system prompt from file
-    const prompt = await readFileContent(options.prompt);
-    if (prompt.isErr()) {
-      return exitWithError(prompt);
+    const system = await readFileContent(options.system_prompt_file);
+    if (system.isErr()) {
+      return exitWithError(system);
     }
 
     // Find the experiment first
@@ -127,7 +132,7 @@ agentCmd
 
     const agent = await AgentResource.create(experiment, {
       name,
-      prompt: prompt.value,
+      system: system.value,
     });
 
     if (agent.isErr()) {
@@ -137,8 +142,8 @@ agentCmd
     console.table(
       [agent.value].map((agent) => {
         const a = agent.toJSON();
-        a.prompt =
-          a.prompt.substring(0, 32) + (a.prompt.length > 32 ? "..." : "");
+        a.system =
+          a.system.substring(0, 32) + (a.system.length > 32 ? "..." : "");
         return a;
       })
     );
@@ -174,8 +179,8 @@ agentCmd
     console.table(
       agents.map((agent) => {
         const a = agent.toJSON();
-        a.prompt =
-          a.prompt.substring(0, 32) + (a.prompt.length > 32 ? "..." : "");
+        a.system =
+          a.system.substring(0, 32) + (a.system.length > 32 ? "..." : "");
         return a;
       })
     );
@@ -285,7 +290,8 @@ agentCmd
     const tools = await dummyClient.listTools();
     console.log(JSON.stringify(tools, null, 2));
 
-    const runner = new Runner(experiment, agent, [dummyClient]);
+    const model = new AnthropicModel({}, "claude-sonnet-4-20250514");
+    const runner = new Runner(experiment, agent, [dummyClient], model);
   });
 
 program.parse();

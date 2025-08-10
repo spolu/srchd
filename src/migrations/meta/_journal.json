@@ -15,6 +15,13 @@
       "when": 1754138273835,
       "tag": "0001_sweet_stellaris",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1754828866305,
+      "tag": "0002_rapid_cable",
+      "breakpoints": true
     }
   ]
 }

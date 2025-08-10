@@ -2,10 +2,12 @@ import type {
   JSONSchema7 as JSONSchema,
   JSONSchema7Definition as JSONSchemaDefinition,
 } from "json-schema";
+import { Result } from "../lib/result";
+import { SrchdError } from "../lib/error";
 
 export interface TextContent {
   type: "text";
-  content: string;
+  text: string;
 }
 
 export interface ToolUse {
@@ -28,9 +30,8 @@ export interface Message {
 }
 
 export interface ModelConfig {
-  temperature?: number;
   maxTokens?: number;
-  model: string;
+  thinking?: "high" | "low";
 }
 
 export interface Tool {
@@ -38,6 +39,8 @@ export interface Tool {
   description: string;
   inputSchema: JSONSchema;
 }
+
+export type ToolChoice = "auto" | "any" | "none";
 
 export abstract class BaseModel {
   protected config: ModelConfig;
@@ -49,6 +52,7 @@ export abstract class BaseModel {
   abstract run(
     messages: Message[],
     prompt: string,
+    toolChoice: ToolChoice,
     tools: Tool[]
-  ): Promise<Message>;
+  ): Promise<Result<Message, SrchdError>>;
 }
