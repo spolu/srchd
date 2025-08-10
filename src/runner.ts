@@ -62,7 +62,18 @@ export class Runner {
     }
 
     const message = await this.model.run(
-      [],
+      [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `${new Date().toISOString()}`,
+            },
+          ],
+        },
+      ],
+
       this.experiment.toJSON().problem,
       "any",
       tools.value
@@ -71,7 +82,7 @@ export class Runner {
       return message;
     }
 
-    console.log(message);
+    console.log(JSON.stringify(message, null, 2));
     return new Ok(undefined);
   }
 }
