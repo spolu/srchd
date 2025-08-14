@@ -71,9 +71,8 @@ export class Runner {
           ],
         },
       ],
-
       this.experiment.toJSON().problem,
-      "any",
+      "auto",
       tools.value
     );
     if (message.isErr()) {
