@@ -1,17 +1,16 @@
-import type {
-  JSONSchema7 as JSONSchema,
-  JSONSchema7Definition as JSONSchemaDefinition,
-} from "json-schema";
+import type { JSONSchema7 as JSONSchema } from "json-schema";
 import { Result } from "../lib/result";
 import { SrchdError } from "../lib/error";
 
 export type provider = "gemini" | "anthropic";
 export const DEFAULT_MAX_TOKENS = 2048;
 
+export type ProviderData = Partial<Record<provider, any>>;
+
 export interface TextContent {
   type: "text";
   text: string;
-  provider: Partial<Record<provider, any>> | null;
+  provider: ProviderData | null;
 }
 
 export interface ToolUse {
@@ -19,13 +18,13 @@ export interface ToolUse {
   id: string;
   name: string;
   input: any;
-  provider: Partial<Record<provider, any>> | null;
+  provider: ProviderData | null;
 }
 
 export interface Thinking {
   type: "thinking";
   thinking: string;
-  provider: Partial<Record<provider, any>> | null;
+  provider: ProviderData | null;
 }
 
 export interface ToolResult {
