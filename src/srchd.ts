@@ -294,7 +294,7 @@ agentCmd
     //   },
     //   "claude-sonnet-4-20250514"
     // );
-    const model = new GeminiModel({}, "gemini-2.5-pro");
+    const model = new GeminiModel({}, "gemini-2.5-flash");
     const runner = new Runner(experiment, agent, [dummyClient], model);
 
     console.log(await runner.tick());

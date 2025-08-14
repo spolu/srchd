@@ -67,12 +67,13 @@ export class Runner {
             {
               type: "text",
               text: `${new Date().toISOString()}`,
+              provider: null,
             },
           ],
         },
       ],
       this.experiment.toJSON().problem,
-      "any",
+      "auto",
       tools.value
     );
     if (message.isErr()) {

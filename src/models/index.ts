@@ -11,6 +11,7 @@ export const DEFAULT_MAX_TOKENS = 2048;
 export interface TextContent {
   type: "text";
   text: string;
+  provider: Partial<Record<provider, any>> | null;
 }
 
 export interface ToolUse {
@@ -18,12 +19,13 @@ export interface ToolUse {
   id: string;
   name: string;
   input: any;
+  provider: Partial<Record<provider, any>> | null;
 }
 
 export interface Thinking {
   type: "thinking";
   thinking: string;
-  provider: Partial<Record<provider, any>>;
+  provider: Partial<Record<provider, any>> | null;
 }
 
 export interface ToolResult {

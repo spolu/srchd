@@ -62,7 +62,7 @@ export class AnthropicModel extends BaseModel {
                 is_error: content.isError,
               };
             case "thinking": {
-              if (content.provider.anthropic) {
+              if (content.provider?.anthropic) {
                 switch (content.provider.anthropic.type) {
                   case "thinking": {
                     return {
@@ -151,6 +151,7 @@ export class AnthropicModel extends BaseModel {
                 return {
                   type: "text",
                   text: c.text,
+                  provider: null,
                 };
               case "tool_use":
                 return {
@@ -158,6 +159,7 @@ export class AnthropicModel extends BaseModel {
                   id: c.id,
                   name: c.name,
                   input: c.input,
+                  provider: null,
                 };
               case "thinking": {
                 return {

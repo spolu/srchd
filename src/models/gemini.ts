@@ -4,7 +4,15 @@ import {
   FunctionDeclaration,
   GoogleGenAI,
 } from "@google/genai";
-import { BaseModel, ModelConfig, Message, Tool, ToolChoice } from "./index";
+import {
+  BaseModel,
+  ModelConfig,
+  Message,
+  Tool,
+  ToolChoice,
+  TextContent,
+  ToolUse,
+} from "./index";
 import { Err, Ok, Result } from "../lib/result";
 import { normalizeError, SrchdError } from "../lib/error";
 import { assertNever } from "../lib/assert";
@@ -68,7 +76,7 @@ export class GeminiModel extends BaseModel {
                     },
                   };
                 case "thinking": {
-                  if (content.provider.gemini) {
+                  if (content.provider?.gemini) {
                     return {
                       thought: true,
                       text: content.thinking,
@@ -155,7 +163,6 @@ export class GeminiModel extends BaseModel {
           (content.parts || []).map((part) => {
             if (part.text) {
               if (part.thought) {
-                console.log(part);
                 return {
                   type: "thinking",
                   thinking: part.text,
@@ -167,21 +174,35 @@ export class GeminiModel extends BaseModel {
                   },
                 };
               } else {
-                return {
+                const c: TextContent = {
                   type: "text",
                   text: part.text,
+                  provider: null,
                 };
+                if (part.thoughtSignature) {
+                  c.provider = {
+                    gemini: { thoughtSignature: part.thoughtSignature },
+                  };
+                }
+                return c;
               }
             }
             if (part.functionCall) {
-              return {
+              const c: ToolUse = {
                 type: "tool_use",
                 id:
                   part.functionCall.id ??
                   `tool_use_${Math.random().toString(36).substring(2)}`,
                 name: part.functionCall.name ?? "tool_use_gemini_no_name",
                 input: part.functionCall.args,
+                provider: null,
               };
+              if (part.thoughtSignature) {
+                c.provider = {
+                  gemini: { thoughtSignature: part.thoughtSignature },
+                };
+              }
+              return c;
             }
             return null;
           })
