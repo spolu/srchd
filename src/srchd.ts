@@ -288,13 +288,13 @@ agentCmd
 
     const [dummyClient] = await createDummyClientServerPair();
 
-    const model = new AnthropicModel(
-      {
-        thinking: "low",
-      },
-      "claude-sonnet-4-20250514"
-    );
-    // const model = new GeminiModel({}, "gemini-2.5-flash-lite");
+    // const model = new AnthropicModel(
+    //   {
+    //     thinking: "low",
+    //   },
+    //   "claude-sonnet-4-20250514"
+    // );
+    const model = new GeminiModel({}, "gemini-2.5-pro");
     const runner = new Runner(experiment, agent, [dummyClient], model);
 
     console.log(await runner.tick());

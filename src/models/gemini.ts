@@ -38,38 +38,51 @@ export class GeminiModel extends BaseModel {
       const contents: Content[] = messages.map((msg) => {
         return {
           role: msg.role === "agent" ? "model" : "user",
-          parts: msg.content.map((content) => {
-            switch (content.type) {
-              case "text":
-                return {
-                  text: content.text,
-                };
-              case "tool_use":
-                return {
-                  functionCall: {
-                    args: content.input,
-                    id: content.id,
-                    name: content.name,
-                  },
-                };
-              case "tool_result":
-                return {
-                  functionResponse: {
-                    id: content.toolUseId,
-                    name: content.toolUseName,
-                    response: content.isError
-                      ? {
-                          error: content.content,
-                        }
-                      : {
-                          output: content.content,
-                        },
-                  },
-                };
-              default:
-                assertNever(content);
-            }
-          }),
+          parts: removeNulls(
+            msg.content.map((content) => {
+              switch (content.type) {
+                case "text":
+                  return {
+                    text: content.text,
+                  };
+                case "tool_use":
+                  return {
+                    functionCall: {
+                      args: content.input,
+                      id: content.id,
+                      name: content.name,
+                    },
+                  };
+                case "tool_result":
+                  return {
+                    functionResponse: {
+                      id: content.toolUseId,
+                      name: content.toolUseName,
+                      response: content.isError
+                        ? {
+                            error: content.content,
+                          }
+                        : {
+                            output: content.content,
+                          },
+                    },
+                  };
+                case "thinking": {
+                  if (content.provider.gemini) {
+                    return {
+                      thought: true,
+                      text: content.thinking,
+                      thoughtSignature:
+                        content.provider.gemini.thoughtSignature,
+                    };
+                  }
+                  return null;
+                }
+                default:
+                  assertNever(content);
+              }
+            })
+          ),
         };
       });
 
@@ -78,11 +91,15 @@ export class GeminiModel extends BaseModel {
         contents: [
           {
             role: "user",
-            parts: [{ text: prompt + "use 2 echo tool at the same time" }],
+            parts: [{ text: prompt }],
           },
           ...contents,
         ],
         config: {
+          thinkingConfig: {
+            thinkingBudget: -1,
+            includeThoughts: true,
+          },
           toolConfig: {
             functionCallingConfig: {
               mode: (() => {
@@ -137,10 +154,24 @@ export class GeminiModel extends BaseModel {
         content: removeNulls(
           (content.parts || []).map((part) => {
             if (part.text) {
-              return {
-                type: "text",
-                text: part.text,
-              };
+              if (part.thought) {
+                console.log(part);
+                return {
+                  type: "thinking",
+                  thinking: part.text,
+                  provider: {
+                    gemini: {
+                      thought: true,
+                      thoughtSignature: part.thoughtSignature,
+                    },
+                  },
+                };
+              } else {
+                return {
+                  type: "text",
+                  text: part.text,
+                };
+              }
             }
             if (part.functionCall) {
               return {
@@ -152,7 +183,6 @@ export class GeminiModel extends BaseModel {
                 input: part.functionCall.args,
               };
             }
-            // TODO(spolu): add support for thinking
             return null;
           })
         ),
