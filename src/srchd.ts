@@ -7,9 +7,11 @@ import { Err } from "./lib/result";
 import { ExperimentResource } from "./resources/experiment";
 import { AgentResource } from "./resources/agent";
 import { Runner } from "./runner";
-import { createDummyClientServerPair } from "./tools/dummy";
+import { createDummyServer } from "./tools/dummy";
 import { AnthropicModel } from "./models/anthropic";
 import { GeminiModel } from "./models/gemini";
+import { createClientServerPair } from "./lib/mcp";
+import { createSystemPromptEditServer } from "./tools/system_prompt_edit";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(`\x1b[31mError: ${err.error.message}\x1b[0m`);
@@ -287,7 +289,10 @@ agentCmd
 
     console.log(`Testing agent: ${name}`);
 
-    const [dummyClient] = await createDummyClientServerPair();
+    const [dummyClient] = await createClientServerPair(createDummyServer());
+    const [systemPromptEditClient] = await createClientServerPair(
+      createSystemPromptEditServer(agent)
+    );
 
     const model = new AnthropicModel(
       {
@@ -296,7 +301,12 @@ agentCmd
       "claude-sonnet-4-20250514"
     );
     // const model = new GeminiModel({}, "gemini-2.5-flash-lite");
-    const runner = new Runner(experiment, agent, [dummyClient], model);
+    const runner = new Runner(
+      experiment,
+      agent,
+      [dummyClient, systemPromptEditClient],
+      model
+    );
 
     console.log(await runner.tick());
   });

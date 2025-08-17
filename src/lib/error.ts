@@ -3,7 +3,8 @@ export type ErrorCode =
   | "not_found_error"
   | "model_error"
   | "tool_error"
-  | "resource_creation_error";
+  | "resource_creation_error"
+  | "string_edit_error";
 
 export class SrchdError<T extends ErrorCode = ErrorCode> extends Error {
   constructor(

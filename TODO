@@ -1,0 +1,17 @@
+- [ ] tick implementation
+- [ ] statefullness of agentic loops
+- [ ] representation loop to model (truncation)
+- [ ] tools
+  - [ ] publications / reviews related tools
+  - [x] self-edit system prompt
+  - [ ] Solution signaling
+  // later
+  - [ ] web search
+  - [ ] computer use
+- [ ] Seed prompts
+- [ ] benchmarks
+  - [ ] ARC-AGI
+  - [ ] ARC-AGI 2
+  - [ ] Math
+  // later
+  - [ ] Vuln discovery

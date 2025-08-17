@@ -1,7 +1,5 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 
 const SERVER_NAME = "dummy";
 const SERVER_VERSION = "0.1.0";
@@ -51,21 +49,4 @@ export function createDummyServer(): McpServer {
   );
 
   return server;
-}
-
-export async function createDummyClientServerPair(): Promise<
-  [Client, McpServer]
-> {
-  const server = createDummyServer();
-  const client = new Client({
-    name: SERVER_NAME,
-    version: SERVER_VERSION,
-  });
-
-  const [clientTransport, serverTransport] =
-    InMemoryTransport.createLinkedPair();
-  await server.connect(serverTransport);
-  await client.connect(clientTransport);
-
-  return [client, server];
 }
