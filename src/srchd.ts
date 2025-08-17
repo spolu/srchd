@@ -113,7 +113,7 @@ agentCmd
     );
 
     // Read system prompt from file
-    const system = await readFileContent(options.system_prompt_file);
+    const system = await readFileContent(options.system);
     if (system.isErr()) {
       return exitWithError(system);
     }
@@ -131,10 +131,11 @@ agentCmd
       );
     }
 
-    const agent = await AgentResource.create(experiment, {
-      name,
-      system: system.value,
-    });
+    const agent = await AgentResource.create(
+      experiment,
+      { name },
+      { system: system.value }
+    );
 
     if (agent.isErr()) {
       return exitWithError(agent);

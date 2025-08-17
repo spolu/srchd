@@ -1,4 +1,10 @@
-import { sqliteTable, text, integer, unique } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  text,
+  integer,
+  unique,
+  index,
+} from "drizzle-orm/sqlite-core";
 
 export const experiments = sqliteTable(
   "experiments",
@@ -32,9 +38,39 @@ export const agents = sqliteTable(
       .notNull()
       .references(() => experiments.id),
     name: text("name").notNull(),
-    system: text("system").notNull(),
   },
   (t) => [unique().on(t.name, t.experiment)]
+);
+
+export const evolutions = sqliteTable(
+  "evolutions",
+  {
+    id: integer("id").primaryKey(),
+    created: integer("created", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated: integer("updated", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+
+    experiment: integer("experiment")
+      .notNull()
+      .references(() => experiments.id),
+    agent: integer("agent")
+      .notNull()
+      .references(() => agents.id),
+
+    system: text("system").notNull(),
+  },
+  (t) => {
+    return [
+      index("evolutions_idx_experiment_agent_created").on(
+        t.experiment,
+        t.agent,
+        t.created
+      ),
+    ];
+  }
 );
 
 export const memories = sqliteTable("memories", {

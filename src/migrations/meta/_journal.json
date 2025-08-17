@@ -22,6 +22,13 @@
       "when": 1754828866305,
       "tag": "0002_rapid_cable",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1755454769904,
+      "tag": "0003_chief_amazoness",
+      "breakpoints": true
     }
   ]
 }

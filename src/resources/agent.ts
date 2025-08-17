@@ -1,26 +1,53 @@
 import { db } from "../db";
-import { agents } from "../db/schema";
-import { eq, InferSelectModel, InferInsertModel, and } from "drizzle-orm";
+import { agents, evolutions } from "../db/schema";
+import { eq, InferSelectModel, InferInsertModel, and, desc } from "drizzle-orm";
 import { ExperimentResource } from "./experiment";
 import { Err, Ok, Result } from "../lib/result";
 import { normalizeError, SrchdError } from "../lib/error";
+import { concurrentExecutor } from "../lib/async";
+import { removeNulls } from "../lib/utils";
 
 type Agent = InferSelectModel<typeof agents>;
+type Evolution = InferSelectModel<typeof evolutions>;
 
 export class AgentResource {
   private data: Agent;
+  private evolution: Evolution;
   experiment: ExperimentResource;
 
   private constructor(data: Agent, experiment: ExperimentResource) {
     this.data = data;
+    this.evolution = {
+      id: 0,
+      created: new Date(),
+      updated: new Date(),
+      agent: 0,
+      experiment: 0,
+      system: "",
+    };
     this.experiment = experiment;
+  }
+
+  private async finalize(): Promise<AgentResource | null> {
+    const [evolution] = await db
+      .select()
+      .from(evolutions)
+      .where(eq(evolutions.agent, this.data.id))
+      .orderBy(desc(evolutions.created))
+      .limit(1);
+
+    if (!evolution) {
+      return null;
+    }
+    this.evolution = evolution;
+    return this;
   }
 
   static async findByName(
     experiment: ExperimentResource,
     name: string
   ): Promise<AgentResource | null> {
-    const result = await db
+    const [result] = await db
       .select()
       .from(agents)
       .where(
@@ -31,22 +58,24 @@ export class AgentResource {
       )
       .limit(1);
 
-    return result[0] ? new AgentResource(result[0], experiment) : null;
+    if (!result) return null;
+
+    return await new AgentResource(result, experiment).finalize();
   }
 
   static async findById(id: number): Promise<AgentResource | null> {
-    const result = await db
+    const [result] = await db
       .select()
       .from(agents)
       .where(eq(agents.id, id))
       .limit(1);
 
-    if (!result[0]) return null;
+    if (!result) return null;
 
-    const experiment = await ExperimentResource.findById(result[0].experiment);
+    const experiment = await ExperimentResource.findById(result.experiment);
     if (!experiment) return null;
 
-    return new AgentResource(result[0], experiment);
+    return await new AgentResource(result, experiment).finalize();
   }
 
   static async listByExperiment(
@@ -57,7 +86,15 @@ export class AgentResource {
       .from(agents)
       .where(eq(agents.experiment, experiment.toJSON().id));
 
-    return results.map((data) => new AgentResource(data, experiment));
+    return removeNulls(
+      await concurrentExecutor(
+        results,
+        async (data) => {
+          return await new AgentResource(data, experiment).finalize();
+        },
+        { concurrency: 8 }
+      )
+    );
   }
 
   static async create(
@@ -65,6 +102,10 @@ export class AgentResource {
     data: Omit<
       InferInsertModel<typeof agents>,
       "id" | "created" | "updated" | "experiment"
+    >,
+    evolution: Omit<
+      InferInsertModel<typeof evolutions>,
+      "id" | "created" | "updated" | "experiment" | "agent"
     >
   ): Promise<Result<AgentResource, SrchdError>> {
     try {
@@ -76,7 +117,24 @@ export class AgentResource {
         })
         .returning();
 
-      return new Ok(new AgentResource(created, experiment));
+      await db.insert(evolutions).values({
+        ...evolution,
+        experiment: created.experiment,
+        agent: created.id,
+      });
+
+      const agent = await new AgentResource(created, experiment).finalize();
+      if (!agent) {
+        return new Err(
+          new SrchdError(
+            "resource_creation_error",
+            "Failed to create agent",
+            new Error("Agent finalization failed")
+          )
+        );
+      }
+
+      return new Ok(agent);
     } catch (error) {
       return new Err(
         new SrchdError(
@@ -102,11 +160,41 @@ export class AgentResource {
   }
 
   async delete(): Promise<void> {
+    await db.delete(evolutions).where(eq(evolutions.id, this.data.id));
     await db.delete(agents).where(eq(agents.id, this.data.id));
+  }
+
+  async evolve(
+    data: Omit<
+      InferInsertModel<typeof evolutions>,
+      "id" | "created" | "updated" | "experiment" | "agent"
+    >
+  ): Promise<Result<AgentResource, SrchdError>> {
+    try {
+      const [created] = await db
+        .insert(evolutions)
+        .values({
+          ...data,
+          experiment: this.data.experiment,
+          agent: this.data.id,
+        })
+        .returning();
+
+      this.evolution = created;
+      return new Ok(this);
+    } catch (error) {
+      return new Err(
+        new SrchdError(
+          "resource_creation_error",
+          "Failed to create agent",
+          normalizeError(error)
+        )
+      );
+    }
   }
 
   // Return raw data if needed
   toJSON() {
-    return this.data;
+    return { ...this.data, system: this.evolution.system };
   }
 }
