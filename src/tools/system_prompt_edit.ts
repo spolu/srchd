@@ -11,8 +11,7 @@ export function createSystemPromptEditServer(agent: AgentResource): McpServer {
     name: SERVER_NAME,
     title: "System prompt edit",
     description:
-      "Tools to self-edit your system prompt. " +
-      "The new system prompt version will be effective immediately.",
+      "Tools to self-edit your system prompt. The new system prompt version will be effective immediately.",
     version: SERVER_VERSION,
   });
 
@@ -46,34 +45,24 @@ export function createSystemPromptEditServer(agent: AgentResource): McpServer {
   server.tool(
     "edit",
     `\
-Modifies the content of the current system prompt by sustituting a specified text segment. This
-tool demands comprehensive contextual information surrounding the string to replace to ensure
-accurate targeting.
+Modifies the content of the current system prompt by sustituting a specified text segment. This tool demands comprehensive contextual information surrounding the string to replace to ensure accurate targeting.
 
 Requirements:
-(i) \`old_str\` NEEDS TO contain the precise literal content for substituation (preserving all
-spacing, formatting, line breaks, etc).
-(ii) \`new_str\` NEEDS TO contain the precise literal content that will substitute \`old_str\`
-(maintaining all spacing, formatting, line breaks, etc). Verify the output maintains proper syntax
-and follows best practices.
-(iii) DO NOT apply escaping to \`old_str\` or \`new_str\`, as this violates the literal text
-requirement.
+(i) \`old_str\` NEEDS TO contain the precise literal content for substituation (preserving all spacing, formatting, line breaks, etc).
+(ii) \`new_str\` NEEDS TO contain the precise literal content that will substitute \`old_str\` (maintaining all spacing, formatting, line breaks, etc). Verify the output maintains proper syntax and follows best practices.
+(iii) DO NOT apply escaping to \`old_str\` or \`new_str\`, as this violates the literal text requirement.
 
 **Critical**:
 - Failure to meet these requirements will cause the tool to fail.
-- \`old_str\` NEEDS TO provide unique identification for the specific instance to replace.Include
-  surrounding textual context BEFORE and AFTER the target content. Multiple matches or inexact
-  matches will cause failure.
+- \`old_str\` NEEDS TO provide unique identification for the specific instance to replace.Include surrounding textual context BEFORE and AFTER the target content. Multiple matches or inexact matches will cause failure.
 
 **Batch replacements**:
-Define \`expected_replacements\` (optional, defaults to 1) when the change is meant to impact more
-than one occurrence. If there is a mismatch the tool will error.`,
+Define \`expected_replacements\` (optional, defaults to 1) when the change is meant to impact more than one occurrence. If there is a mismatch the tool will error.`,
     {
       old_str: z
         .string()
         .describe(
-          "The exact text to replace (must match the file contents exactly, including all " +
-            "whitespace and indentation)."
+          "The exact text to replace (must match the file contents exactly, including all whitespace and indentation)."
         ),
       new_str: z.string().describe("The edited text to replace `old_str`"),
       expected_replacements: z
