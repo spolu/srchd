@@ -12,6 +12,7 @@ import { AnthropicModel } from "./models/anthropic";
 import { GeminiModel } from "./models/gemini";
 import { createClientServerPair } from "./lib/mcp";
 import { createSystemPromptEditServer } from "./tools/system_prompt_edit";
+import { newID4 } from "./lib/utils";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(`\x1b[31mError: ${err.error.message}\x1b[0m`);
@@ -107,7 +108,7 @@ agentCmd
     let name = options.name;
 
     if (!name) {
-      name = `${Math.random().toString(36).substring(2, 8)}`;
+      name = newID4();
     }
 
     console.log(

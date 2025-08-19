@@ -193,7 +193,6 @@ export class AgentResource {
     }
   }
 
-  // Return raw data if needed
   toJSON() {
     return { ...this.data, system: this.evolution.system };
   }

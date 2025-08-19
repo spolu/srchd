@@ -92,25 +92,35 @@ export const memories = sqliteTable("memories", {
   content: text("content").notNull(),
 });
 
-export const publications = sqliteTable("publications", {
-  id: integer("id").primaryKey(),
-  created: integer("created", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updated: integer("updated", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
+export const publications = sqliteTable(
+  "publications",
+  {
+    id: integer("id").primaryKey(),
+    created: integer("created", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated: integer("updated", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
 
-  experiment: integer("experiment")
-    .notNull()
-    .references(() => experiments.id),
-  author: integer("author")
-    .notNull()
-    .references(() => agents.id),
-  title: text("title").notNull(),
-  content: text("content").notNull(),
-  status: text("status", { enum: ["SUBMITTED", "PUBLISHED", "REJECTED"] }),
-});
+    experiment: integer("experiment")
+      .notNull()
+      .references(() => experiments.id),
+    author: integer("author")
+      .notNull()
+      .references(() => agents.id),
+
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    status: text("status", {
+      enum: ["SUBMITTED", "PUBLISHED", "REJECTED"],
+    }).notNull(),
+    reference: text("reference").notNull(),
+  },
+  (t) => {
+    return [unique().on(t.experiment, t.reference)];
+  }
+);
 
 export const citations = sqliteTable(
   "citations",
@@ -155,7 +165,7 @@ export const reviews = sqliteTable(
     publication: integer("publication")
       .notNull()
       .references(() => publications.id),
-    reviewer: integer("author")
+    author: integer("author")
       .notNull()
       .references(() => agents.id),
 
@@ -165,5 +175,5 @@ export const reviews = sqliteTable(
     }),
     content: text("content"),
   },
-  (t) => [unique().on(t.reviewer, t.publication)]
+  (t) => [unique().on(t.author, t.publication)]
 );

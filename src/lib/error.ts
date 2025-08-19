@@ -4,6 +4,7 @@ export type ErrorCode =
   | "model_error"
   | "tool_error"
   | "resource_creation_error"
+  | "resource_update_error"
   | "string_edit_error";
 
 export class SrchdError<T extends ErrorCode = ErrorCode> extends Error {
