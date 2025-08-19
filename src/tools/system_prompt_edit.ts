@@ -3,13 +3,15 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AgentResource } from "../resources/agent";
 import { errorToCallToolResult, stringEdit } from "../lib/mcp";
 
-const SERVER_NAME = "system_prompt_edit";
+const SERVER_NAME = "system_prompt_self_edit";
 const SERVER_VERSION = "0.1.0";
 
-export function createSystemPromptEditServer(agent: AgentResource): McpServer {
+export function createSystemPromptSelfEditServer(
+  agent: AgentResource
+): McpServer {
   const server = new McpServer({
     name: SERVER_NAME,
-    title: "System prompt edit",
+    title: "System prompt self-edit",
     description:
       "Tools to self-edit your system prompt. The new system prompt version will be effective immediately.",
     version: SERVER_VERSION,

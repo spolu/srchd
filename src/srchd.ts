@@ -11,7 +11,7 @@ import { createDummyServer } from "./tools/dummy";
 import { AnthropicModel } from "./models/anthropic";
 import { GeminiModel } from "./models/gemini";
 import { createClientServerPair } from "./lib/mcp";
-import { createSystemPromptEditServer } from "./tools/system_prompt_edit";
+import { createSystemPromptSelfEditServer } from "./tools/system_prompt_edit";
 import { newID4 } from "./lib/utils";
 
 const exitWithError = (err: Err<SrchdError>) => {
@@ -291,8 +291,8 @@ agentCmd
     console.log(`Testing agent: ${name}`);
 
     const [dummyClient] = await createClientServerPair(createDummyServer());
-    const [systemPromptEditClient] = await createClientServerPair(
-      createSystemPromptEditServer(agent)
+    const [systemPromptSelfEditClient] = await createClientServerPair(
+      createSystemPromptSelfEditServer(agent)
     );
 
     const model = new AnthropicModel(
@@ -305,7 +305,7 @@ agentCmd
     const runner = new Runner(
       experiment,
       agent,
-      [dummyClient, systemPromptEditClient],
+      [dummyClient, systemPromptSelfEditClient],
       model
     );
 

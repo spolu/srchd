@@ -1,6 +1,7 @@
 export type ErrorCode =
   | "reading_file_error"
   | "not_found_error"
+  | "reference_not_found_error"
   | "model_error"
   | "tool_error"
   | "resource_creation_error"

@@ -96,7 +96,7 @@ export class PublicationResource {
     if (notFound.length > 0) {
       return new Err(
         new SrchdError(
-          "not_found_error",
+          "reference_not_found_error",
           "Reference not found in publication submission content: " +
             notFound.join(",")
         )
