@@ -5,24 +5,166 @@ import {
   InferSelectModel,
   InferInsertModel,
   and,
+  desc,
   inArray,
+  count,
+  getTableColumns,
+  isNull,
 } from "drizzle-orm";
 import { ExperimentResource } from "./experiment";
-import { AgentResource } from "./agent";
+import { Agent, AgentResource } from "./agent";
 import { Err, Ok, Result } from "../lib/result";
 import { normalizeError, SrchdError } from "../lib/error";
-import { newID4 } from "../lib/utils";
+import { newID4, removeNulls } from "../lib/utils";
+import { concurrentExecutor } from "../lib/async";
 
-type Publication = InferSelectModel<typeof publications>;
-type Review = InferInsertModel<typeof reviews>;
+const REVIEW_SCORES = {
+  STRONG_ACCEPT: 2,
+  ACCEPT: 1,
+  REJECT: -1,
+  STRONG_REJECT: -2,
+};
+const MIN_REVIEW_SCORE = 2;
+
+export type Publication = InferSelectModel<typeof publications>;
+export type Review = InferInsertModel<typeof reviews>;
+export type Citation = InferInsertModel<typeof citations>;
 
 export class PublicationResource {
   private data: Publication;
+  private citations: { from: Citation[]; to: Citation[] };
+  private reviews: Review[];
+  private author: Agent;
+
   experiment: ExperimentResource;
 
   private constructor(data: Publication, experiment: ExperimentResource) {
     this.data = data;
+    this.citations = { from: [], to: [] };
+    this.reviews = [];
+    this.author = {
+      id: 0,
+      name: "",
+      created: new Date(),
+      updated: new Date(),
+      experiment: experiment.toJSON().id,
+    };
     this.experiment = experiment;
+  }
+
+  private async finalize(): Promise<PublicationResource> {
+    const fromCitationsQuery = db
+      .select()
+      .from(citations)
+      .where(eq(citations.from, this.data.id));
+    const toCitationsQuery = db
+      .select()
+      .from(citations)
+      .where(eq(citations.to, this.data.id));
+    const reviewsQuery = db
+      .select()
+      .from(reviews)
+      .where(eq(reviews.publication, this.data.id));
+    const authorQuery = AgentResource.findById(this.data.author);
+
+    const [fromCitationsResults, toCitationsResults, reviewsResults, author] =
+      await Promise.all([
+        fromCitationsQuery,
+        toCitationsQuery,
+        reviewsQuery,
+        authorQuery,
+      ]);
+
+    this.citations.from = fromCitationsResults;
+    this.citations.to = toCitationsResults;
+    this.reviews = reviewsResults;
+
+    if (author) {
+      this.author = author.toJSON();
+    }
+    return this;
+  }
+
+  static async listPublishedByExperiment(
+    experiment: ExperimentResource,
+    options: {
+      order: "latest" | "citations";
+      limit: number;
+      offset: number;
+    }
+  ): Promise<PublicationResource[]> {
+    const { order, limit, offset } = options;
+
+    const baseQuery = db
+      .select({
+        ...getTableColumns(publications),
+        citationsCount: count(citations.id),
+      })
+      .from(publications)
+      .leftJoin(citations, eq(citations.to, publications.id))
+      .where(
+        and(
+          eq(publications.experiment, experiment.toJSON().id),
+          eq(publications.status, "PUBLISHED")
+        )
+      )
+      .groupBy(publications.id)
+      .limit(limit)
+      .offset(offset);
+
+    const query =
+      order === "latest"
+        ? baseQuery.orderBy(desc(publications.created))
+        : baseQuery.orderBy(desc(count(citations.id)));
+
+    const results = await query;
+
+    return await concurrentExecutor(
+      results,
+      async (data) => {
+        return await new PublicationResource(data, experiment).finalize();
+      },
+      { concurrency: 8 }
+    );
+  }
+
+  static async listByExperimentAndReviewRequested(
+    experiment: ExperimentResource,
+    reviewer: AgentResource
+  ): Promise<PublicationResource[]> {
+    const results = await db
+      .select()
+      .from(reviews)
+      .where(
+        and(
+          eq(reviews.experiment, experiment.toJSON().id),
+          eq(reviews.author, reviewer.toJSON().id),
+          isNull(reviews.grade)
+        )
+      );
+
+    if (results.length === 0) return [];
+
+    const publicationIds = results.map((r) => r.publication);
+    const publicationsQuery = db
+      .select()
+      .from(publications)
+      .where(
+        and(
+          eq(publications.experiment, experiment.toJSON().id),
+          inArray(publications.id, publicationIds)
+        )
+      );
+
+    const publicationsResults = await publicationsQuery;
+
+    return await concurrentExecutor(
+      publicationsResults,
+      async (data) => {
+        return await new PublicationResource(data, experiment).finalize();
+      },
+      { concurrency: 8 }
+    );
   }
 
   static async findByReference(
@@ -42,7 +184,7 @@ export class PublicationResource {
 
     if (!result) return null;
 
-    return new PublicationResource(result, experiment);
+    return await new PublicationResource(result, experiment).finalize();
   }
 
   static async findByReferences(
@@ -59,7 +201,13 @@ export class PublicationResource {
         )
       );
 
-    return results.map((result) => new PublicationResource(result, experiment));
+    return await concurrentExecutor(
+      results,
+      async (data) => {
+        return await new PublicationResource(data, experiment).finalize();
+      },
+      { concurrency: 8 }
+    );
   }
 
   private static extractReferences(content: string) {
@@ -81,6 +229,7 @@ export class PublicationResource {
     author: AgentResource,
     data: {
       title: string;
+      abstract: string;
       content: string;
     }
   ): Promise<Result<PublicationResource, SrchdError>> {
@@ -117,16 +266,39 @@ export class PublicationResource {
 
       // We don't create citations until the publication gets published.
 
-      return new Ok(new PublicationResource(created, experiment));
+      return new Ok(
+        await new PublicationResource(created, experiment).finalize()
+      );
     } catch (error) {
       return new Err(
         new SrchdError(
           "resource_creation_error",
-          "Failed to create agent",
+          "Failed to create publication",
           normalizeError(error)
         )
       );
     }
+  }
+
+  async maybePublishOrReject(): Promise<
+    "SUBMITTED" | "PUBLISHED" | "REJECTED"
+  > {
+    const grades = removeNulls(this.reviews.map((r) => r.grade ?? null));
+
+    // If we are mising reviews return early
+    if (grades.length < this.reviews.length) {
+      return "SUBMITTED";
+    }
+
+    const score = grades.reduce((acc, g) => acc + REVIEW_SCORES[g], 0);
+
+    if (score >= MIN_REVIEW_SCORE) {
+      await this.publish();
+    } else {
+      await this.reject();
+    }
+
+    return this.data.status;
   }
 
   async publish() {
@@ -162,6 +334,7 @@ export class PublicationResource {
         );
       }
 
+      this.data = updated;
       return new Ok(this);
     } catch (error) {
       return new Err(
@@ -191,6 +364,7 @@ export class PublicationResource {
         );
       }
 
+      this.data = updated;
       return new Ok(this);
     } catch (error) {
       return new Err(
@@ -207,6 +381,15 @@ export class PublicationResource {
     reviewers: AgentResource[]
   ): Promise<Result<Review[], SrchdError>> {
     try {
+      if (this.reviews.length > 0) {
+        return new Err(
+          new SrchdError(
+            "resource_creation_error",
+            "Reviews already exist for this publication"
+          )
+        );
+      }
+
       const created = await db
         .insert(reviews)
         .values(
@@ -217,6 +400,8 @@ export class PublicationResource {
           }))
         )
         .returning();
+
+      this.reviews = created;
 
       return new Ok(created);
     } catch (error) {
@@ -230,19 +415,6 @@ export class PublicationResource {
     }
   }
 
-  async listReviews(): Promise<Review[]> {
-    const results = await db
-      .select()
-      .from(reviews)
-      .where(
-        and(
-          eq(reviews.experiment, this.experiment.toJSON().id),
-          eq(reviews.publication, this.data.id)
-        )
-      );
-    return results;
-  }
-
   async submitReview(
     reviewer: AgentResource,
     data: Omit<
@@ -250,6 +422,18 @@ export class PublicationResource {
       "id" | "created" | "updated" | "experiment" | "publication" | "author"
     >
   ): Promise<Result<Review, SrchdError>> {
+    const idx = this.reviews.findIndex(
+      (r) => r.author === reviewer.toJSON().id
+    );
+    if (idx !== -1) {
+      return new Err(
+        new SrchdError(
+          "resource_creation_error",
+          "Review submitted does not match any review request."
+        )
+      );
+    }
+
     try {
       const [updated] = await db
         .update(reviews)
@@ -273,6 +457,7 @@ export class PublicationResource {
         );
       }
 
+      this.reviews[idx] = updated;
       return new Ok(updated);
     } catch (error) {
       return new Err(
@@ -286,6 +471,11 @@ export class PublicationResource {
   }
 
   toJSON() {
-    return { ...this.data };
+    return {
+      ...this.data,
+      citations: this.citations,
+      reviews: this.reviews,
+      author: this.author,
+    };
   }
 }

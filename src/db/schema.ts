@@ -112,6 +112,7 @@ export const publications = sqliteTable(
 
     title: text("title").notNull(),
     content: text("content").notNull(),
+    abstract: text("abstract").notNull(),
     status: text("status", {
       enum: ["SUBMITTED", "PUBLISHED", "REJECTED"],
     }).notNull(),

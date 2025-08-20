@@ -19,7 +19,7 @@ export function createSystemPromptSelfEditServer(
 
   server.tool(
     "append",
-    "Append text to the end of the current system prompt (no character or separator are injected)",
+    "Append text to the end of the current system prompt (no character or separator are injected).",
     {
       new_str: z.string().describe("The string to append."),
     },

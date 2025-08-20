@@ -5,41 +5,29 @@ import { ExperimentResource } from "./experiment";
 import { Err, Ok, Result } from "../lib/result";
 import { normalizeError, SrchdError } from "../lib/error";
 import { concurrentExecutor } from "../lib/async";
-import { removeNulls } from "../lib/utils";
 
-type Agent = InferSelectModel<typeof agents>;
-type Evolution = InferSelectModel<typeof evolutions>;
+export type Agent = InferSelectModel<typeof agents>;
+export type Evolution = InferSelectModel<typeof evolutions>;
 
 export class AgentResource {
   private data: Agent;
-  private evolution: Evolution;
+  private evolutions: Evolution[];
   experiment: ExperimentResource;
 
   private constructor(data: Agent, experiment: ExperimentResource) {
     this.data = data;
-    this.evolution = {
-      id: 0,
-      created: new Date(),
-      updated: new Date(),
-      agent: 0,
-      experiment: 0,
-      system: "",
-    };
+    this.evolutions = [];
     this.experiment = experiment;
   }
 
-  private async finalize(): Promise<AgentResource | null> {
-    const [evolution] = await db
+  private async finalize(): Promise<AgentResource> {
+    const results = await db
       .select()
       .from(evolutions)
       .where(eq(evolutions.agent, this.data.id))
-      .orderBy(desc(evolutions.created))
-      .limit(1);
+      .orderBy(desc(evolutions.created));
 
-    if (!evolution) {
-      return null;
-    }
-    this.evolution = evolution;
+    this.evolutions = results;
     return this;
   }
 
@@ -86,14 +74,13 @@ export class AgentResource {
       .from(agents)
       .where(eq(agents.experiment, experiment.toJSON().id));
 
-    return removeNulls(
-      await concurrentExecutor(
-        results,
-        async (data) => {
-          return await new AgentResource(data, experiment).finalize();
-        },
-        { concurrency: 8 }
-      )
+    // TODO(spolu): optimize with a join?
+    return await concurrentExecutor(
+      results,
+      async (data) => {
+        return await new AgentResource(data, experiment).finalize();
+      },
+      { concurrency: 8 }
     );
   }
 
@@ -180,7 +167,7 @@ export class AgentResource {
         })
         .returning();
 
-      this.evolution = created;
+      this.evolutions = [...this.evolutions, created];
       return new Ok(this);
     } catch (error) {
       return new Err(
@@ -194,6 +181,10 @@ export class AgentResource {
   }
 
   toJSON() {
-    return { ...this.data, system: this.evolution.system };
+    return {
+      ...this.data,
+      system: this.evolutions[0].system,
+      evolutions: this.evolutions,
+    };
   }
 }
