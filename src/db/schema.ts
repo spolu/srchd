@@ -5,6 +5,7 @@ import {
   unique,
   index,
 } from "drizzle-orm/sqlite-core";
+import { Message } from "../models";
 
 export const experiments = sqliteTable(
   "experiments",
@@ -73,24 +74,36 @@ export const evolutions = sqliteTable(
   }
 );
 
-export const memories = sqliteTable("memories", {
-  id: integer("id").primaryKey(),
-  created: integer("created", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updated: integer("updated", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
+export const messages = sqliteTable(
+  "messages",
+  {
+    id: integer("id").primaryKey(),
+    created: integer("created", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated: integer("updated", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
 
-  experiment: integer("experiment")
-    .notNull()
-    .references(() => experiments.id),
-  agent: integer("agent")
-    .notNull()
-    .references(() => agents.id),
+    experiment: integer("experiment")
+      .notNull()
+      .references(() => experiments.id),
+    agent: integer("agent")
+      .notNull()
+      .references(() => agents.id),
 
-  content: text("content").notNull(),
-});
+    // 0-based position within the (experiment, agent) thread
+    position: integer("position").notNull(),
+
+    role: text("role", { enum: ["user", "agent"] as const })
+      .$type<Message["role"]>()
+      .notNull(),
+    content: text("content", { mode: "json" })
+      .$type<Message["content"]>()
+      .notNull(),
+  },
+  (t) => [unique().on(t.experiment, t.agent, t.position)]
+);
 
 export const publications = sqliteTable(
   "publications",

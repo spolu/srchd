@@ -36,6 +36,13 @@
       "when": 1755606083677,
       "tag": "0004_short_alex_wilder",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1755698309854,
+      "tag": "0005_rich_wraith",
+      "breakpoints": true
     }
   ]
 }
