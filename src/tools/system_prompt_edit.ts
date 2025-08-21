@@ -2,6 +2,7 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AgentResource } from "../resources/agent";
 import { errorToCallToolResult, stringEdit } from "../lib/mcp";
+import { normalizeError, SrchdError } from "../lib/error";
 
 const SERVER_NAME = "system_prompt_self_edit";
 const SERVER_VERSION = "0.1.0";
@@ -77,34 +78,44 @@ Define \`expected_replacements\` (optional, defaults to 1) when the change is me
         ),
     },
     async (params) => {
-      const system = agent.toJSON().system;
+      try {
+        const system = agent.toJSON().system;
 
-      const update = stringEdit({
-        content: system,
-        oldStr: params.old_str,
-        newStr: params.new_str,
-        expectedReplacements: params.expected_replacements,
-      });
+        const update = stringEdit({
+          content: system,
+          oldStr: params.old_str,
+          newStr: params.new_str,
+          expectedReplacements: params.expected_replacements,
+        });
 
-      if (update.isErr()) {
-        return errorToCallToolResult(update.error);
+        if (update.isErr()) {
+          return errorToCallToolResult(update.error);
+        }
+
+        const result = await agent.evolve({
+          system: update.value,
+        });
+        if (result.isErr()) {
+          return errorToCallToolResult(result.error);
+        }
+        return {
+          isError: false,
+          content: [
+            {
+              type: "text",
+              text: "System prompt updated",
+            },
+          ],
+        };
+      } catch (error) {
+        return errorToCallToolResult(
+          new SrchdError(
+            "tool_execution_error",
+            `Error editing system prompt`,
+            normalizeError(error)
+          )
+        );
       }
-
-      const result = await agent.evolve({
-        system: update.value,
-      });
-      if (result.isErr()) {
-        return errorToCallToolResult(result.error);
-      }
-      return {
-        isError: false,
-        content: [
-          {
-            type: "text",
-            text: "System prompt updated",
-          },
-        ],
-      };
     }
   );
 

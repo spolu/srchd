@@ -12,6 +12,7 @@ import { normalizeError, SrchdError } from "../lib/error";
 import { Err, Ok, Result } from "../lib/result";
 import { assertNever } from "../lib/assert";
 import { removeNulls } from "../lib/utils";
+import assert from "assert";
 
 const DEFAULT_LOW_THINKING_TOKENS = 4096;
 const DEFAULT_HIGH_THINKING_TOKENS = 8192;
@@ -58,7 +59,43 @@ export class AnthropicModel extends BaseModel {
               return {
                 type: "tool_result",
                 tool_use_id: content.toolUseId,
-                content: content.content,
+                // content: content.content,
+                content: content.content.map((content) => {
+                  switch (content.type) {
+                    case "text":
+                      return {
+                        type: "text",
+                        text: content.text,
+                      };
+                    case "image": {
+                      return {
+                        type: "image",
+                        source: {
+                          data: content.data,
+                          media_type: content.mimeType as any,
+                          type: "base64",
+                        },
+                      };
+                    }
+                    case "audio":
+                      return {
+                        type: "text",
+                        text: "(unsupported audio content)",
+                      };
+                    case "resource":
+                      return {
+                        type: "text",
+                        text: JSON.stringify(content, null, 2),
+                      };
+                    case "resource_link":
+                      return {
+                        type: "text",
+                        text: JSON.stringify(content, null, 2),
+                      };
+                    default:
+                      assertNever(content);
+                  }
+                }),
                 is_error: content.isError,
               };
             case "thinking": {

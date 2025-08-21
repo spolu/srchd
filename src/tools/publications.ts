@@ -11,7 +11,9 @@ const REVIEWER_COUNT = 3;
 const SERVER_NAME = "publications";
 const SERVER_VERSION = "0.1.0";
 
-const renderListOfPublications = (publications: PublicationResource[]) => {
+export const renderListOfPublications = (
+  publications: PublicationResource[]
+) => {
   if (publications.length === 0) {
     return "(0 found)";
   }

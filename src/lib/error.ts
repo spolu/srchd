@@ -7,6 +7,8 @@ export type ErrorCode =
   | "tool_error"
   | "resource_creation_error"
   | "resource_update_error"
+  | "tool_execution_error"
+  | "tool_not_found_error"
   | "string_edit_error";
 
 export class SrchdError<T extends ErrorCode = ErrorCode> extends Error {

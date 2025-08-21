@@ -1,5 +1,7 @@
-- [ ] tick implementation
-- [ ] statefullness of agentic loops
+- [x] tick implementation
+- [x] statefullness of agentic loops
+- [ ] inject instructions about tools
+- [ ] add server name prefix to tool names
 - [ ] representation loop to model (truncation)
 - [x] tools
   - [x] publications / reviews related tools

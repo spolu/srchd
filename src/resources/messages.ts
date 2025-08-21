@@ -70,6 +70,10 @@ export class MessageResource {
     }
   }
 
+  position(): number {
+    return this.data.position;
+  }
+
   toJSON(): Message {
     return {
       role: this.data.role,

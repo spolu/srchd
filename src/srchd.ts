@@ -13,6 +13,7 @@ import { GeminiModel } from "./models/gemini";
 import { createClientServerPair } from "./lib/mcp";
 import { createSystemPromptSelfEditServer } from "./tools/system_prompt_edit";
 import { newID4 } from "./lib/utils";
+import { createPublicationsServer } from "./tools/publications";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(`\x1b[31mError: ${err.error.message}\x1b[0m`);
@@ -149,6 +150,8 @@ agentCmd
         const a = agent.toJSON();
         a.system =
           a.system.substring(0, 32) + (a.system.length > 32 ? "..." : "");
+        // @ts-expect-error: clean-up hack
+        delete a.evolutions;
         return a;
       })
     );
@@ -290,9 +293,9 @@ agentCmd
       );
     }
 
-    console.log(`Testing agent: ${name}`);
-
-    const [dummyClient] = await createClientServerPair(createDummyServer());
+    const [publicationClient] = await createClientServerPair(
+      createPublicationsServer(experiment, agent)
+    );
     const [systemPromptSelfEditClient] = await createClientServerPair(
       createSystemPromptSelfEditServer(agent)
     );
@@ -303,15 +306,19 @@ agentCmd
       },
       "claude-sonnet-4-20250514"
     );
-    // const model = new GeminiModel({}, "gemini-2.5-flash-lite");
-    const runner = new Runner(
+    // const model = new GeminiModel({}, "gemini-2.5-flash");
+    const runner = await Runner.initialize(
       experiment,
       agent,
-      [dummyClient, systemPromptSelfEditClient],
+      [publicationClient, systemPromptSelfEditClient],
       model
     );
 
-    console.log(await runner.tick());
+    if (runner.isErr()) {
+      return exitWithError(runner);
+    }
+
+    await runner.value.tick();
   });
 
 program.parse();

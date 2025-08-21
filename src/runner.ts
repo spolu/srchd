@@ -1,18 +1,25 @@
 import { JSONSchema7 } from "json-schema";
-import { BaseModel, Tool } from "./models";
+import { BaseModel, Message, Tool, ToolResult, ToolUse } from "./models";
 import { AgentResource } from "./resources/agent";
 import { ExperimentResource } from "./resources/experiment";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { normalizeError, SrchdError } from "./lib/error";
 import { Err, Ok, Result } from "./lib/result";
+import { MessageResource } from "./resources/messages";
+import assert from "assert";
+import { PublicationResource } from "./resources/publication";
+import { renderListOfPublications } from "./tools/publications";
+import { errorToCallToolResult } from "./lib/mcp";
+import { concurrentExecutor } from "./lib/async";
 
 export class Runner {
   private experiment: ExperimentResource;
   private agent: AgentResource;
   private mcpClients: Client[];
   private model: BaseModel;
+  private messages: MessageResource[] | null; // ordered by position desc
 
-  constructor(
+  private constructor(
     experiment: ExperimentResource,
     agent: AgentResource,
     mcpClients: Client[],
@@ -22,6 +29,29 @@ export class Runner {
     this.agent = agent;
     this.mcpClients = mcpClients;
     this.model = model;
+    this.messages = null;
+  }
+
+  public static async initialize(
+    experiment: ExperimentResource,
+    agent: AgentResource,
+    mcpClients: Client[],
+    model: BaseModel
+  ): Promise<Result<Runner, SrchdError>> {
+    const runner = new Runner(experiment, agent, mcpClients, model);
+
+    const messages = await MessageResource.listMessagesByAgent(
+      runner.experiment,
+      runner.agent
+    );
+
+    if (messages.isErr()) {
+      return messages;
+    }
+
+    runner.messages = messages.value;
+
+    return new Ok(runner);
   }
 
   async tools(): Promise<Result<Tool[], SrchdError>> {
@@ -32,7 +62,7 @@ export class Runner {
         const ct = await client.listTools();
         for (const tool of ct.tools) {
           tools.push({
-            name: tool.name,
+            name: `${client.getServerVersion()?.name}-${tool.name}`,
             description: tool.description,
             inputSchema: tool.inputSchema as JSONSchema7,
           });
@@ -50,37 +80,231 @@ export class Runner {
       }
     }
 
+    // console.log("--------------------------------");
+    // console.log("Available Tools:");
+    // tools.forEach((tool) => {
+    //   console.log(`- ${tool.name}: ${tool.description}`);
+    // });
+
     return new Ok(tools);
   }
 
+  async executeTool(t: ToolUse): Promise<ToolResult> {
+    for (const client of this.mcpClients) {
+      try {
+        const ct = await client.listTools();
+        for (const tool of ct.tools) {
+          if (`${client.getServerVersion()?.name}-${tool.name}` === t.name) {
+            const result = await client.callTool({
+              name: tool.name,
+              arguments: t.input,
+            });
+
+            return {
+              type: "tool_result",
+              toolUseId: t.id,
+              toolUseName: t.name,
+              // @ts-ignore TODO(spolu): investigate mismatch
+              content: result.content,
+              isError: false,
+            };
+          }
+        }
+      } catch (error) {
+        return {
+          type: "tool_result",
+          toolUseId: t.id,
+          toolUseName: t.name,
+          content: errorToCallToolResult(
+            new SrchdError(
+              "tool_execution_error",
+              `Error executing tool ${t.name}`,
+              normalizeError(error)
+            )
+          ).content,
+          isError: true,
+        };
+      }
+    }
+
+    return {
+      type: "tool_result",
+      toolUseId: t.id,
+      toolUseName: t.name,
+      content: errorToCallToolResult(
+        new SrchdError(
+          "tool_execution_error",
+          `No MCP client found to execute tool ${t.name}`,
+          null
+        )
+      ).content,
+      isError: true,
+    };
+  }
+
+  isNewUserMessageNeeded(): boolean {
+    assert(this.messages !== null, "Runner not initialized with messages.");
+
+    if (this.messages.length === 0) {
+      return true;
+    }
+
+    const last = this.messages[0];
+
+    // If the role is agent it means we had no tool use in the last tick and we need a user message.
+    if (last.toJSON().role === "agent") {
+      return true;
+    }
+
+    return false;
+  }
+
+  async newUserMessage(): Promise<Result<MessageResource, SrchdError>> {
+    assert(this.messages !== null, "Runner not initialized with messages.");
+
+    const position =
+      this.messages.length > 0 ? this.messages[0].position() + 1 : 0;
+
+    const reviews =
+      await PublicationResource.listByExperimentAndReviewRequested(
+        this.experiment,
+        this.agent
+      );
+
+    const m: Message = {
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: `\
+Current Time: ${new Date().toISOString()}
+Pending reviews:
+${renderListOfPublications(reviews)}`,
+          provider: null,
+        },
+      ],
+    };
+
+    const message = await MessageResource.create(
+      this.experiment,
+      this.agent,
+      m,
+      position
+    );
+
+    if (message.isErr()) {
+      return message;
+    }
+
+    return new Ok(message.value);
+  }
+
   async tick(): Promise<Result<void, SrchdError>> {
+    assert(this.messages !== null, "Runner not initialized with messages.");
+
     const tools = await this.tools();
     if (tools.isErr()) {
       return tools;
     }
 
-    const message = await this.model.run(
-      [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `${new Date().toISOString()}`,
-              provider: null,
-            },
-          ],
-        },
-      ],
-      this.experiment.toJSON().problem,
+    if (this.isNewUserMessageNeeded()) {
+      const newMessage = await this.newUserMessage();
+      if (newMessage.isErr()) {
+        return newMessage;
+      }
+      this.messages.unshift(newMessage.value);
+    }
+
+    const systemPrompt = `\
+<goal>
+${this.experiment.toJSON().problem}
+</goal>
+
+${this.agent.toJSON().system}`;
+    // TODO(spolu): conversation rendering (context management)
+    const messagesForModel = [...this.messages].reverse();
+
+    const m = await this.model.run(
+      messagesForModel.map((msg) => msg.toJSON()),
+      systemPrompt,
       "auto",
       tools.value
     );
-    if (message.isErr()) {
-      return message;
+    if (m.isErr()) {
+      return m;
     }
 
-    console.log(JSON.stringify(message, null, 2));
+    m.value.content.forEach((c) => {
+      if (c.type === "thinking") {
+        console.log(
+          `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m` + // name: bold white
+            ` \x1b[90m>\x1b[0m ` + // separator: grey
+            `\x1b[1m\x1b[95mThinking:\x1b[0m ` + // label: bold magenta/purple
+            `\x1b[90m${c.thinking.replace(/\n/g, " ")}\x1b[0m` // text: grey
+        );
+      }
+      if (c.type === "text") {
+        console.log(
+          `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m` + // name: bold white
+            ` \x1b[90m>\x1b[0m ` + // separator: grey
+            `\x1b[1m\x1b[38;5;208mText:\x1b[0m ` + // label: bold orange (256-color)
+            `\x1b[90m${c.text.replace(/\n/g, " ")}\x1b[0m` // content: grey
+        );
+      }
+      if (c.type === "tool_use") {
+        console.log(
+          `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m` + // name: bold white
+            ` \x1b[90m>\x1b[0m ` + // separator: grey
+            `\x1b[1m\x1b[32mToolUse::\x1b[0m ` + // label: bold green
+            `${c.name}`
+        );
+      }
+    });
+
+    const toolResults = await concurrentExecutor(
+      m.value.content.filter((content) => content.type === "tool_use"),
+      async (t: ToolUse) => {
+        const res = await this.executeTool(t);
+        console.log(
+          `${this.agent.toJSON().name} < ToolResult: ${res.toolUseName} ${
+            res.isError ? "[error]" : "[success]"
+          }`
+        );
+        if (res.isError) {
+          console.error(res.content);
+        }
+        return res;
+      },
+      { concurrency: 8 }
+    );
+
+    let last = this.messages[0];
+
+    const agentMessage = await MessageResource.create(
+      this.experiment,
+      this.agent,
+      m.value,
+      last.position() + 1
+    );
+    if (agentMessage.isErr()) {
+      return agentMessage;
+    }
+    this.messages.unshift(agentMessage.value);
+
+    const toolResultsMessage = await MessageResource.create(
+      this.experiment,
+      this.agent,
+      {
+        role: "user",
+        content: toolResults,
+      },
+      last.position() + 2
+    );
+    if (toolResultsMessage.isErr()) {
+      return toolResultsMessage;
+    }
+    this.messages.unshift(toolResultsMessage.value);
+
     return new Ok(undefined);
   }
 }

@@ -1,6 +1,7 @@
 import type { JSONSchema7 as JSONSchema } from "json-schema";
 import { Result } from "../lib/result";
 import { SrchdError } from "../lib/error";
+import { CallToolResult } from "@modelcontextprotocol/sdk/types";
 
 export type provider = "gemini" | "anthropic";
 export const DEFAULT_MAX_TOKENS = 2048;
@@ -31,13 +32,21 @@ export interface ToolResult {
   type: "tool_result";
   toolUseId: string;
   toolUseName: string;
-  content: string;
+  content: CallToolResult["content"];
   isError: boolean;
 }
 
 export interface Message {
   role: "user" | "agent";
   content: (TextContent | ToolUse | ToolResult | Thinking)[];
+}
+
+export function isUserMessageWithText(
+  message: Message
+): message is Message & { content: TextContent[] } {
+  return (
+    message.role === "user" && message.content.every((c) => c.type === "text")
+  );
 }
 
 export interface ModelConfig {
