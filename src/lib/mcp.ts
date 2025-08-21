@@ -29,7 +29,10 @@ export function errorToCallToolResult(error: SrchdError): CallToolResult {
     content: [
       {
         type: "text",
-        text: `Error [${error.code}] ${error.message}`,
+        text:
+          `Error [${error.code}]: ${error.message}` + error.cause
+            ? ` (cause: ${error.cause?.message})`
+            : "",
       },
     ],
   };

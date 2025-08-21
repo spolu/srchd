@@ -75,4 +75,11 @@ export abstract class BaseModel {
     toolChoice: ToolChoice,
     tools: Tool[]
   ): Promise<Result<Message, SrchdError>>;
+
+  abstract tokens(
+    messages: Message[],
+    prompt: string,
+    toolChoice: ToolChoice,
+    tools: Tool[]
+  ): Promise<Result<number, SrchdError>>;
 }

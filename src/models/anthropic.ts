@@ -12,7 +12,6 @@ import { normalizeError, SrchdError } from "../lib/error";
 import { Err, Ok, Result } from "../lib/result";
 import { assertNever } from "../lib/assert";
 import { removeNulls } from "../lib/utils";
-import assert from "assert";
 
 const DEFAULT_LOW_THINKING_TOKENS = 4096;
 const DEFAULT_HIGH_THINKING_TOKENS = 8192;
@@ -32,12 +31,7 @@ export class AnthropicModel extends BaseModel {
     this.model = model;
   }
 
-  async run(
-    messages: Message[],
-    prompt: string,
-    toolChoice: ToolChoice,
-    tools: Tool[]
-  ): Promise<Result<Message, SrchdError>> {
+  messages(messages: Message[]) {
     const anthropicMessages: MessageParam[] = messages.map((msg) => ({
       role: msg.role === "agent" ? "assistant" : "user",
       content: removeNulls(
@@ -127,6 +121,15 @@ export class AnthropicModel extends BaseModel {
       ),
     }));
 
+    return anthropicMessages;
+  }
+
+  async run(
+    messages: Message[],
+    prompt: string,
+    toolChoice: ToolChoice,
+    tools: Tool[]
+  ): Promise<Result<Message, SrchdError>> {
     try {
       const message = await this.client.messages.create({
         model: this.model,
@@ -147,7 +150,7 @@ export class AnthropicModel extends BaseModel {
                 assertNever(this.config.thinking);
             }
           })(),
-        messages: anthropicMessages,
+        messages: this.messages(messages),
         system: prompt,
         thinking: (() => {
           switch (this.config.thinking) {
@@ -237,6 +240,59 @@ export class AnthropicModel extends BaseModel {
         new SrchdError(
           "model_error",
           "Failed to run model",
+          normalizeError(error)
+        )
+      );
+    }
+  }
+
+  async tokens(
+    messages: Message[],
+    prompt: string,
+    toolChoice: ToolChoice,
+    tools: Tool[]
+  ): Promise<Result<number, SrchdError>> {
+    try {
+      const response = await this.client.messages.countTokens({
+        model: this.model,
+        messages: this.messages(messages),
+        system: prompt,
+        thinking: (() => {
+          switch (this.config.thinking) {
+            case undefined:
+              return {
+                type: "disabled",
+              };
+            case "low": {
+              return {
+                type: "enabled",
+                budget_tokens: DEFAULT_LOW_THINKING_TOKENS,
+              };
+            }
+            case "high": {
+              return {
+                type: "enabled",
+                budget_tokens: DEFAULT_HIGH_THINKING_TOKENS,
+              };
+            }
+          }
+        })(),
+        tools: tools.map((tool) => ({
+          name: tool.name,
+          description: tool.description,
+          input_schema: tool.inputSchema as any,
+        })),
+        tool_choice: {
+          type: toolChoice,
+        },
+      });
+
+      return new Ok(response.input_tokens);
+    } catch (error) {
+      return new Err(
+        new SrchdError(
+          "model_error",
+          "Failed to count tokens",
           normalizeError(error)
         )
       );

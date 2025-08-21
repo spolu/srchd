@@ -36,6 +36,60 @@ export class GeminiModel extends BaseModel {
     this.model = model;
   }
 
+  contents(messages: Message[]) {
+    const contents: Content[] = messages.map((msg) => {
+      return {
+        role: msg.role === "agent" ? "model" : "user",
+        parts: removeNulls(
+          msg.content.map((content) => {
+            switch (content.type) {
+              case "text":
+                return {
+                  text: content.text,
+                };
+              case "tool_use":
+                return {
+                  functionCall: {
+                    args: content.input,
+                    id: content.id,
+                    name: content.name,
+                  },
+                };
+              case "tool_result":
+                return {
+                  functionResponse: {
+                    id: content.toolUseId,
+                    name: content.toolUseName,
+                    response: content.isError
+                      ? {
+                          error: content.content,
+                        }
+                      : {
+                          output: content.content,
+                        },
+                  },
+                };
+              case "thinking": {
+                if (content.provider?.gemini) {
+                  return {
+                    thought: true,
+                    text: content.thinking,
+                    thoughtSignature: content.provider.gemini.thoughtSignature,
+                  };
+                }
+                return null;
+              }
+              default:
+                assertNever(content);
+            }
+          })
+        ),
+      };
+    });
+
+    return contents;
+  }
+
   async run(
     messages: Message[],
     prompt: string,
@@ -43,57 +97,6 @@ export class GeminiModel extends BaseModel {
     tools: Tool[]
   ): Promise<Result<Message, SrchdError>> {
     try {
-      const contents: Content[] = messages.map((msg) => {
-        return {
-          role: msg.role === "agent" ? "model" : "user",
-          parts: removeNulls(
-            msg.content.map((content) => {
-              switch (content.type) {
-                case "text":
-                  return {
-                    text: content.text,
-                  };
-                case "tool_use":
-                  return {
-                    functionCall: {
-                      args: content.input,
-                      id: content.id,
-                      name: content.name,
-                    },
-                  };
-                case "tool_result":
-                  return {
-                    functionResponse: {
-                      id: content.toolUseId,
-                      name: content.toolUseName,
-                      response: content.isError
-                        ? {
-                            error: content.content,
-                          }
-                        : {
-                            output: content.content,
-                          },
-                    },
-                  };
-                case "thinking": {
-                  if (content.provider?.gemini) {
-                    return {
-                      thought: true,
-                      text: content.thinking,
-                      thoughtSignature:
-                        content.provider.gemini.thoughtSignature,
-                    };
-                  }
-                  return null;
-                }
-                default:
-                  assertNever(content);
-              }
-            })
-          ),
-        };
-      });
-
       const response = await this.client.models.generateContent({
         model: this.model,
         contents: [
@@ -101,7 +104,7 @@ export class GeminiModel extends BaseModel {
             role: "user",
             parts: [{ text: prompt }],
           },
-          ...contents,
+          ...this.contents(messages),
         ],
         config: {
           thinkingConfig: {
@@ -213,6 +216,59 @@ export class GeminiModel extends BaseModel {
         new SrchdError(
           "model_error",
           "Failed to run model",
+          normalizeError(error)
+        )
+      );
+    }
+  }
+
+  async tokens(
+    messages: Message[],
+    prompt: string,
+    toolChoice: ToolChoice,
+    tools: Tool[]
+  ): Promise<Result<number, SrchdError>> {
+    try {
+      const response = await this.client.models.countTokens({
+        model: this.model,
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }],
+          },
+          ...this.contents(messages),
+        ],
+        config: {
+          tools: [
+            {
+              functionDeclarations: tools.map((tool) => {
+                return {
+                  name: tool.name,
+                  description: tool.description || "",
+                  parametersJsonSchema: tool.inputSchema,
+                } as FunctionDeclaration;
+              }),
+            },
+          ],
+        },
+      });
+
+      if (!response.totalTokens) {
+        return new Err(
+          new SrchdError(
+            "model_error",
+            "Gemini model returned no token counts",
+            null
+          )
+        );
+      }
+
+      return new Ok(response.totalTokens);
+    } catch (error) {
+      return new Err(
+        new SrchdError(
+          "model_error",
+          "Failed to count tokens",
           normalizeError(error)
         )
       );
