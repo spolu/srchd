@@ -214,7 +214,11 @@ ${renderListOfPublications(reviews)}`,
       "lastAgenticLoopStartPosition is out of bounds."
     );
 
-    let idx = this.lastAgenticLoopStartPosition;
+    // console.log(
+    //   "this.lastAgenticLoopStartPosition: " + this.lastAgenticLoopStartPosition
+    // );
+
+    let idx = this.lastAgenticLoopStartPosition + 1;
     for (; idx < this.messages.length; idx++) {
       const m = this.messages[idx].toJSON();
       if (m.role === "user" && m.content.every((c) => c.type === "text")) {
@@ -222,6 +226,8 @@ ${renderListOfPublications(reviews)}`,
         break;
       }
     }
+
+    // console.log("shiftLastAgenticLoopStartPosition.idx: " + idx);
 
     if (idx >= this.messages.length) {
       return new Err(

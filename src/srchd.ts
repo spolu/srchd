@@ -7,7 +7,6 @@ import { Err } from "./lib/result";
 import { ExperimentResource } from "./resources/experiment";
 import { AgentResource } from "./resources/agent";
 import { Runner } from "./runner";
-import { createDummyServer } from "./tools/dummy";
 import { AnthropicModel } from "./models/anthropic";
 import { GeminiModel } from "./models/gemini";
 import { createClientServerPair } from "./lib/mcp";
@@ -16,7 +15,9 @@ import { newID4 } from "./lib/utils";
 import { createPublicationsServer } from "./tools/publications";
 
 const exitWithError = (err: Err<SrchdError>) => {
-  console.error(`\x1b[31mError: ${err.error.message}\x1b[0m`);
+  console.error(
+    `\x1b[31mError [${err.error.code}] ${err.error.message}\x1b[0m`
+  );
   if (err.error.cause) {
     console.error(`\x1b[31mCause: ${err.error.cause.message}\x1b[0m`);
   }
@@ -318,7 +319,10 @@ agentCmd
       return exitWithError(runner);
     }
 
-    await runner.value.tick();
+    const res = await runner.value.tick();
+    if (res.isErr()) {
+      return exitWithError(res);
+    }
   });
 
 program.parse();
