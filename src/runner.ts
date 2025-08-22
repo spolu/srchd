@@ -12,6 +12,8 @@ import { renderListOfPublications } from "./tools/publications";
 import { errorToCallToolResult } from "./lib/mcp";
 import { concurrentExecutor } from "./lib/async";
 
+const MAX_TOKENS_COUNT = 128000;
+
 export class Runner {
   private experiment: ExperimentResource;
   private agent: AgentResource;
@@ -100,13 +102,17 @@ export class Runner {
               arguments: t.input,
             });
 
+            // console.log(result);
+            // console.log(JSON.stringify(result, null, 2));
+
             return {
               type: "tool_result",
               toolUseId: t.id,
               toolUseName: t.name,
               // @ts-ignore TODO(spolu): investigate mismatch
               content: result.content,
-              isError: false,
+              // @ts-ignore TODO(spolu): investigate mismatch
+              isError: result.isError ?? false,
             };
           }
         }
@@ -199,6 +205,33 @@ ${renderListOfPublications(reviews)}`,
     return new Ok(message.value);
   }
 
+  async renderForModel(
+    systemPrompt: string,
+    tools: Tool[]
+  ): Promise<Result<Message[], SrchdError>> {
+    assert(this.messages !== null, "Runner not initialized with messages.");
+    const messages = [...this.messages].reverse().map((m) => m.toJSON());
+    let tokenCount = 0;
+
+    // TODO(spolu): conversation rendering (context management)
+    do {
+      const res = await this.model.tokens(
+        messages,
+        systemPrompt,
+        "auto",
+        tools
+      );
+
+      if (res.isErr()) {
+        return res;
+      }
+      tokenCount = res.value;
+      console.log("TOKEN COUNT: " + tokenCount);
+    } while (tokenCount > MAX_TOKENS_COUNT);
+
+    return new Ok(messages);
+  }
+
   async tick(): Promise<Result<void, SrchdError>> {
     assert(this.messages !== null, "Runner not initialized with messages.");
 
@@ -221,11 +254,17 @@ ${this.experiment.toJSON().problem}
 </goal>
 
 ${this.agent.toJSON().system}`;
-    // TODO(spolu): conversation rendering (context management)
-    const messagesForModel = [...this.messages].reverse();
+
+    const messagesForModel = await this.renderForModel(
+      systemPrompt,
+      tools.value
+    );
+    if (messagesForModel.isErr()) {
+      return messagesForModel;
+    }
 
     const m = await this.model.run(
-      messagesForModel.map((msg) => msg.toJSON()),
+      messagesForModel.value,
       systemPrompt,
       "auto",
       tools.value

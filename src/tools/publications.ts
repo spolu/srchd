@@ -139,16 +139,6 @@ ${publication.toJSON().content}`,
         );
       }
 
-      const publication = await PublicationResource.submit(experiment, agent, {
-        title,
-        abstract,
-        content,
-      });
-
-      if (publication.isErr()) {
-        return errorToCallToolResult(publication.error);
-      }
-
       const agents = await AgentResource.listByExperiment(experiment);
       const pool = agents.filter((a) => a.toJSON().id !== agent.toJSON().id);
       if (pool.length < REVIEWER_COUNT) {
@@ -159,6 +149,15 @@ ${publication.toJSON().content}`,
       const reviewers = pool
         .sort(() => 0.5 - Math.random())
         .slice(0, REVIEWER_COUNT);
+
+      const publication = await PublicationResource.submit(experiment, agent, {
+        title,
+        abstract,
+        content,
+      });
+      if (publication.isErr()) {
+        return errorToCallToolResult(publication.error);
+      }
 
       const reviews = await publication.value.requestReviewers(reviewers);
       if (reviews.isErr()) {
