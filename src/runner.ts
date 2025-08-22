@@ -19,7 +19,8 @@ export class Runner {
   private agent: AgentResource;
   private mcpClients: Client[];
   private model: BaseModel;
-  private messages: MessageResource[] | null; // ordered by position desc
+  private lastAgenticLoopStartPosition: number; // last "agentic loop start position" used
+  private messages: MessageResource[] | null; // ordered by position asc
 
   private constructor(
     experiment: ExperimentResource,
@@ -32,6 +33,7 @@ export class Runner {
     this.mcpClients = mcpClients;
     this.model = model;
     this.messages = null;
+    this.lastAgenticLoopStartPosition = 0;
   }
 
   public static async initialize(
@@ -46,7 +48,6 @@ export class Runner {
       runner.experiment,
       runner.agent
     );
-
     if (messages.isErr()) {
       return messages;
     }
@@ -155,9 +156,8 @@ export class Runner {
       return true;
     }
 
-    const last = this.messages[0];
-
     // If the role is agent it means we had no tool use in the last tick and we need a user message.
+    const last = this.messages[this.messages.length - 1];
     if (last.toJSON().role === "agent") {
       return true;
     }
@@ -169,7 +169,9 @@ export class Runner {
     assert(this.messages !== null, "Runner not initialized with messages.");
 
     const position =
-      this.messages.length > 0 ? this.messages[0].position() + 1 : 0;
+      this.messages.length > 0
+        ? this.messages[this.messages.length - 1].position() + 1
+        : 0;
 
     const reviews =
       await PublicationResource.listByExperimentAndReviewRequested(
@@ -205,31 +207,71 @@ ${renderListOfPublications(reviews)}`,
     return new Ok(message.value);
   }
 
+  shiftLastAgenticLoopStartPosition(): Result<void, SrchdError> {
+    assert(this.messages !== null, "Runner not initialized with messages.");
+    assert(
+      this.lastAgenticLoopStartPosition < this.messages.length,
+      "lastAgenticLoopStartPosition is out of bounds."
+    );
+
+    let idx = this.lastAgenticLoopStartPosition;
+    for (; idx < this.messages.length; idx++) {
+      const m = this.messages[idx].toJSON();
+      if (m.role === "user" && m.content.every((c) => c.type === "text")) {
+        // Found the next user message, which marks the start of the next agentic loop.
+        break;
+      }
+    }
+
+    if (idx >= this.messages.length) {
+      return new Err(
+        new SrchdError(
+          "agent_loop_overflow_error",
+          "No agentic loop start position found after last."
+        )
+      );
+    }
+
+    this.lastAgenticLoopStartPosition = idx;
+    return new Ok(undefined);
+  }
+
   async renderForModel(
     systemPrompt: string,
     tools: Tool[]
   ): Promise<Result<Message[], SrchdError>> {
     assert(this.messages !== null, "Runner not initialized with messages.");
-    const messages = [...this.messages].reverse().map((m) => m.toJSON());
-    let tokenCount = 0;
 
-    // TODO(spolu): conversation rendering (context management)
+    let tokenCount = 0;
     do {
+      // Take messages from this.lastAgenticLoopStartPosition to the end.
+      const messages = [...this.messages]
+        .slice(this.lastAgenticLoopStartPosition)
+        .map((m) => m.toJSON());
+
       const res = await this.model.tokens(
         messages,
         systemPrompt,
         "auto",
         tools
       );
-
       if (res.isErr()) {
         return res;
       }
       tokenCount = res.value;
       console.log("TOKEN COUNT: " + tokenCount);
+
+      if (tokenCount > MAX_TOKENS_COUNT) {
+        const res = this.shiftLastAgenticLoopStartPosition();
+        if (res.isErr()) {
+          return res;
+        }
+      } else {
+        return new Ok(messages);
+      }
     } while (tokenCount > MAX_TOKENS_COUNT);
 
-    return new Ok(messages);
+    return new Err(new SrchdError("agent_loop_overflow_error", "Unreachable"));
   }
 
   async tick(): Promise<Result<void, SrchdError>> {
@@ -245,7 +287,7 @@ ${renderListOfPublications(reviews)}`,
       if (newMessage.isErr()) {
         return newMessage;
       }
-      this.messages.unshift(newMessage.value);
+      this.messages.push(newMessage.value);
     }
 
     const systemPrompt = `\
@@ -317,7 +359,7 @@ ${this.agent.toJSON().system}`;
       { concurrency: 8 }
     );
 
-    let last = this.messages[0];
+    let last = this.messages[this.messages.length - 1];
 
     const agentMessage = await MessageResource.create(
       this.experiment,
@@ -328,21 +370,23 @@ ${this.agent.toJSON().system}`;
     if (agentMessage.isErr()) {
       return agentMessage;
     }
-    this.messages.unshift(agentMessage.value);
+    this.messages.push(agentMessage.value);
 
-    const toolResultsMessage = await MessageResource.create(
-      this.experiment,
-      this.agent,
-      {
-        role: "user",
-        content: toolResults,
-      },
-      last.position() + 2
-    );
-    if (toolResultsMessage.isErr()) {
-      return toolResultsMessage;
+    if (toolResults.length > 0) {
+      const toolResultsMessage = await MessageResource.create(
+        this.experiment,
+        this.agent,
+        {
+          role: "user",
+          content: toolResults,
+        },
+        last.position() + 2
+      );
+      if (toolResultsMessage.isErr()) {
+        return toolResultsMessage;
+      }
+      this.messages.push(toolResultsMessage.value);
     }
-    this.messages.unshift(toolResultsMessage.value);
 
     return new Ok(undefined);
   }

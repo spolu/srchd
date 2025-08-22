@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { messages } from "../db/schema";
-import { eq, InferSelectModel, and, desc } from "drizzle-orm";
+import { eq, InferSelectModel, and, asc } from "drizzle-orm";
 import { ExperimentResource } from "./experiment";
 import { Err, Ok, Result } from "../lib/result";
 import { normalizeError, SrchdError } from "../lib/error";
@@ -21,10 +21,7 @@ export class MessageResource {
 
   static async listMessagesByAgent(
     experiment: ExperimentResource,
-    agent: AgentResource,
-    options: {
-      limit?: number;
-    } = {}
+    agent: AgentResource
   ): Promise<Result<MessageResource[], SrchdError>> {
     const results = await db
       .select()
@@ -35,8 +32,7 @@ export class MessageResource {
           eq(messages.agent, agent.toJSON().id)
         )
       )
-      .orderBy(desc(messages.position))
-      .limit(options.limit ?? 128);
+      .orderBy(asc(messages.position));
 
     return new Ok(results.map((msg) => new MessageResource(msg, experiment)));
   }

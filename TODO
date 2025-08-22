@@ -4,7 +4,9 @@
 - [x] tools
   - [x] publications / reviews related tools
   - [x] self-edit system prompt
-- [ ] representation loop to model (truncation)
+- [x] representation loop to model (truncation)
+      // didn't do agentic loop compression yet
+- [ ] add model to agent definition?
 - [ ] runner main loop implementation
 - [ ] initial expeimentation run
 - [ ] benchmarks
