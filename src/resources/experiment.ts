@@ -1,8 +1,6 @@
 import { db } from "../db";
 import { experiments } from "../db/schema";
 import { eq, InferSelectModel, InferInsertModel } from "drizzle-orm";
-import { normalizeError, SrchdError } from "../lib/error";
-import { Err, Ok, Result } from "../lib/result";
 
 type Experiment = InferSelectModel<typeof experiments>;
 
@@ -38,19 +36,9 @@ export class ExperimentResource {
       InferInsertModel<typeof experiments>,
       "id" | "created" | "updated"
     >
-  ): Promise<Result<ExperimentResource, SrchdError>> {
-    try {
-      const [created] = await db.insert(experiments).values(data).returning();
-      return new Ok(new ExperimentResource(created));
-    } catch (error) {
-      return new Err(
-        new SrchdError(
-          "resource_creation_error",
-          "Failed to create experiment",
-          normalizeError(error)
-        )
-      );
-    }
+  ): Promise<ExperimentResource> {
+    const [created] = await db.insert(experiments).values(data).returning();
+    return new ExperimentResource(created);
   }
 
   static async all(): Promise<ExperimentResource[]> {

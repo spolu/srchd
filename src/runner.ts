@@ -25,6 +25,7 @@ import { concurrentExecutor } from "./lib/async";
 import { createSystemPromptSelfEditServer } from "./tools/system_prompt_edit";
 import { AnthropicModel } from "./models/anthropic";
 import { assertNever } from "./lib/assert";
+import { db } from "./db";
 
 const MAX_TOKENS_COUNT = 128000;
 
@@ -34,7 +35,7 @@ export class Runner {
   private mcpClients: Client[];
   private model: BaseModel;
   private lastAgenticLoopStartPosition: number; // last "agentic loop start position" used
-  private messages: MessageResource[] | null; // ordered by position asc
+  private messages: MessageResource[]; // ordered by position asc
 
   private constructor(
     experiment: ExperimentResource,
@@ -46,7 +47,7 @@ export class Runner {
     this.agent = agent;
     this.mcpClients = mcpClients;
     this.model = model;
-    this.messages = null;
+    this.messages = [];
     this.lastAgenticLoopStartPosition = 0;
   }
 
@@ -121,11 +122,8 @@ export class Runner {
       runner.experiment,
       runner.agent
     );
-    if (messages.isErr()) {
-      return messages;
-    }
 
-    runner.messages = messages.value;
+    runner.messages = messages;
 
     return new Ok(runner);
   }
@@ -223,8 +221,6 @@ export class Runner {
   }
 
   isNewUserMessageNeeded(): boolean {
-    assert(this.messages !== null, "Runner not initialized with messages.");
-
     if (this.messages.length === 0) {
       return true;
     }
@@ -239,8 +235,6 @@ export class Runner {
   }
 
   async newUserMessage(): Promise<Result<MessageResource, SrchdError>> {
-    assert(this.messages !== null, "Runner not initialized with messages.");
-
     const position =
       this.messages.length > 0
         ? this.messages[this.messages.length - 1].position() + 1
@@ -283,15 +277,10 @@ ${renderListOfPublications(publications, { withAbstract: false })}
       position
     );
 
-    if (message.isErr()) {
-      return message;
-    }
-
-    return new Ok(message.value);
+    return new Ok(message);
   }
 
   shiftLastAgenticLoopStartPosition(): Result<void, SrchdError> {
-    assert(this.messages !== null, "Runner not initialized with messages.");
     assert(
       this.lastAgenticLoopStartPosition < this.messages.length,
       "lastAgenticLoopStartPosition is out of bounds."
@@ -336,8 +325,6 @@ ${renderListOfPublications(publications, { withAbstract: false })}
     systemPrompt: string,
     tools: Tool[]
   ): Promise<Result<Message[], SrchdError>> {
-    assert(this.messages !== null, "Runner not initialized with messages.");
-
     let tokenCount = 0;
     do {
       // Take messages from this.lastAgenticLoopStartPosition to the end.
@@ -373,8 +360,14 @@ ${renderListOfPublications(publications, { withAbstract: false })}
   /**
    * Logs message content during runner execution to display progress.
    */
-  logContent(c: TextContent | ToolUse | ToolResult | Thinking) {
+  logContent(
+    c: TextContent | ToolUse | ToolResult | Thinking,
+    messageId?: number
+  ) {
     let out = `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m`; // name: bold white
+    if (messageId) {
+      out += ` \x1b[1m\x1b[33m#${messageId}\x1b[0m`; // message id: bold yellow if available
+    }
     switch (c.type) {
       case "thinking": {
         out += ` \x1b[90m>\x1b[0m `; // separator: grey
@@ -390,7 +383,7 @@ ${renderListOfPublications(publications, { withAbstract: false })}
       }
       case "tool_use": {
         out += ` \x1b[90m>\x1b[0m `; // separator: grey
-        out += `\x1b[1m\x1b[32mToolUse::\x1b[0m `; // label: bold green
+        out += `\x1b[1m\x1b[32mToolUse:\x1b[0m `; // label: bold green
         out += `${c.name}`;
         break;
       }
@@ -409,14 +402,13 @@ ${renderListOfPublications(publications, { withAbstract: false })}
       default:
         assertNever(c);
     }
+    console.log(out);
   }
 
   /**
    * Advance runer by one tick (one agent call + associated tools executions).
    */
   async tick(): Promise<Result<void, SrchdError>> {
-    assert(this.messages !== null, "Runner not initialized with messages.");
-
     const tools = await this.tools();
     if (tools.isErr()) {
       return tools;
@@ -455,51 +447,51 @@ ${this.agent.toJSON().system}`;
       return m;
     }
 
-    m.value.content.forEach((c) => {
-      this.logContent(c);
-    });
-
     const toolResults = await concurrentExecutor(
       m.value.content.filter((content) => content.type === "tool_use"),
       async (t: ToolUse) => {
-        const res = await this.executeTool(t);
-        this.logContent(res);
-        if (res.isError) {
-          console.error(res.content);
-        }
-        return res;
+        return await this.executeTool(t);
       },
       { concurrency: 8 }
     );
 
     let last = this.messages[this.messages.length - 1];
 
-    const agentMessage = await MessageResource.create(
-      this.experiment,
-      this.agent,
-      m.value,
-      last.position() + 1
-    );
-    if (agentMessage.isErr()) {
-      return agentMessage;
-    }
-    this.messages.push(agentMessage.value);
-
-    if (toolResults.length > 0) {
-      const toolResultsMessage = await MessageResource.create(
+    await db.transaction(async (tx) => {
+      const agentMessage = await MessageResource.create(
         this.experiment,
         this.agent,
-        {
-          role: "user",
-          content: toolResults,
-        },
-        last.position() + 2
+        m.value,
+        last.position() + 1,
+        { tx }
       );
-      if (toolResultsMessage.isErr()) {
-        return toolResultsMessage;
+      this.messages.push(agentMessage);
+
+      m.value.content.forEach((c) => {
+        this.logContent(c, agentMessage.toJSON().id);
+      });
+
+      if (toolResults.length > 0) {
+        const toolResultsMessage = await MessageResource.create(
+          this.experiment,
+          this.agent,
+          {
+            role: "user",
+            content: toolResults,
+          },
+          last.position() + 2,
+          { tx }
+        );
+        this.messages.push(toolResultsMessage);
+
+        toolResults.forEach((tr) => {
+          this.logContent(tr, toolResultsMessage.toJSON().id);
+          if (tr.isError) {
+            console.error(tr.content);
+          }
+        });
       }
-      this.messages.push(toolResultsMessage.value);
-    }
+    });
 
     return new Ok(undefined);
   }
@@ -530,7 +522,7 @@ ${this.agent.toJSON().system}`;
     const content = agentMessage.toJSON().content;
 
     content.forEach((c) => {
-      this.logContent(c);
+      this.logContent(c, agentMessage.toJSON().id);
     });
 
     const toolResults = await concurrentExecutor(

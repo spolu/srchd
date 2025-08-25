@@ -8,7 +8,6 @@ import {
   desc,
   inArray,
   count,
-  getTableColumns,
   isNull,
 } from "drizzle-orm";
 import { ExperimentResource } from "./experiment";
@@ -271,32 +270,22 @@ export class PublicationResource {
       );
     }
 
-    try {
-      const [created] = await db
-        .insert(publications)
-        .values({
-          experiment: experiment.toJSON().id,
-          author: author.toJSON().id,
-          ...data,
-          reference: newID4(),
-          status: "SUBMITTED",
-        })
-        .returning();
+    const [created] = await db
+      .insert(publications)
+      .values({
+        experiment: experiment.toJSON().id,
+        author: author.toJSON().id,
+        ...data,
+        reference: newID4(),
+        status: "SUBMITTED",
+      })
+      .returning();
 
-      // We don't create citations until the publication gets published.
+    // We don't create citations until the publication gets published.
 
-      return new Ok(
-        await new PublicationResource(created, experiment).finalize()
-      );
-    } catch (error) {
-      return new Err(
-        new SrchdError(
-          "resource_creation_error",
-          "Failed to create publication",
-          normalizeError(error)
-        )
-      );
-    }
+    return new Ok(
+      await new PublicationResource(created, experiment).finalize()
+    );
   }
 
   async maybePublishOrReject(): Promise<
@@ -399,39 +388,29 @@ export class PublicationResource {
   async requestReviewers(
     reviewers: AgentResource[]
   ): Promise<Result<Review[], SrchdError>> {
-    try {
-      if (this.reviews.length > 0) {
-        return new Err(
-          new SrchdError(
-            "resource_creation_error",
-            "Reviews already exist for this publication"
-          )
-        );
-      }
-
-      const created = await db
-        .insert(reviews)
-        .values(
-          reviewers.map((reviewer) => ({
-            experiment: this.experiment.toJSON().id,
-            publication: this.data.id,
-            author: reviewer.toJSON().id,
-          }))
-        )
-        .returning();
-
-      this.reviews = created;
-
-      return new Ok(created);
-    } catch (error) {
+    if (this.reviews.length > 0) {
       return new Err(
         new SrchdError(
           "resource_creation_error",
-          "Failed to request reviews",
-          normalizeError(error)
+          "Reviews already exist for this publication"
         )
       );
     }
+
+    const created = await db
+      .insert(reviews)
+      .values(
+        reviewers.map((reviewer) => ({
+          experiment: this.experiment.toJSON().id,
+          publication: this.data.id,
+          author: reviewer.toJSON().id,
+        }))
+      )
+      .returning();
+
+    this.reviews = created;
+
+    return new Ok(created);
   }
 
   async submitReview(
@@ -453,40 +432,30 @@ export class PublicationResource {
       );
     }
 
-    try {
-      const [updated] = await db
-        .update(reviews)
-        .set({
-          grade: data.grade,
-          content: data.content,
-          updated: new Date(),
-        })
-        .where(
-          and(
-            eq(reviews.experiment, this.experiment.toJSON().id),
-            eq(reviews.publication, this.data.id),
-            eq(reviews.author, reviewer.toJSON().id)
-          )
+    const [updated] = await db
+      .update(reviews)
+      .set({
+        grade: data.grade,
+        content: data.content,
+        updated: new Date(),
+      })
+      .where(
+        and(
+          eq(reviews.experiment, this.experiment.toJSON().id),
+          eq(reviews.publication, this.data.id),
+          eq(reviews.author, reviewer.toJSON().id)
         )
-        .returning();
+      )
+      .returning();
 
-      if (!updated) {
-        return new Err(
-          new SrchdError("not_found_error", "Review not found", null)
-        );
-      }
-
-      this.reviews[idx] = updated;
-      return new Ok(updated);
-    } catch (error) {
+    if (!updated) {
       return new Err(
-        new SrchdError(
-          "resource_creation_error",
-          "Failed to perform review",
-          normalizeError(error)
-        )
+        new SrchdError("not_found_error", "Review not found", null)
       );
     }
+
+    this.reviews[idx] = updated;
+    return new Ok(updated);
   }
 
   toJSON() {

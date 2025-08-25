@@ -94,43 +94,22 @@ export class AgentResource {
       InferInsertModel<typeof evolutions>,
       "id" | "created" | "updated" | "experiment" | "agent"
     >
-  ): Promise<Result<AgentResource, SrchdError>> {
-    try {
-      const [created] = await db
-        .insert(agents)
-        .values({
-          ...data,
-          experiment: experiment.toJSON().id,
-        })
-        .returning();
+  ): Promise<AgentResource> {
+    const [created] = await db
+      .insert(agents)
+      .values({
+        ...data,
+        experiment: experiment.toJSON().id,
+      })
+      .returning();
 
-      await db.insert(evolutions).values({
-        ...evolution,
-        experiment: created.experiment,
-        agent: created.id,
-      });
+    await db.insert(evolutions).values({
+      ...evolution,
+      experiment: created.experiment,
+      agent: created.id,
+    });
 
-      const agent = await new AgentResource(created, experiment).finalize();
-      if (!agent) {
-        return new Err(
-          new SrchdError(
-            "resource_creation_error",
-            "Failed to create agent",
-            new Error("Agent finalization failed")
-          )
-        );
-      }
-
-      return new Ok(agent);
-    } catch (error) {
-      return new Err(
-        new SrchdError(
-          "resource_creation_error",
-          "Failed to create agent",
-          normalizeError(error)
-        )
-      );
-    }
+    return await new AgentResource(created, experiment).finalize();
   }
 
   async update(
@@ -173,7 +152,7 @@ export class AgentResource {
       return new Err(
         new SrchdError(
           "resource_creation_error",
-          "Failed to create agent",
+          "Failed to create agent evolution",
           normalizeError(error)
         )
       );

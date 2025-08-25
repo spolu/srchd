@@ -52,11 +52,7 @@ experimentCmd
       problem: problem.value,
     });
 
-    if (experiment.isErr()) {
-      return exitWithError(experiment);
-    }
-
-    console.table([experiment.value.toJSON()]);
+    console.table([experiment.toJSON()]);
   });
 
 experimentCmd
@@ -129,12 +125,8 @@ agentCmd
       { system: system.value }
     );
 
-    if (agent.isErr()) {
-      return exitWithError(agent);
-    }
-
     console.table(
-      [agent.value].map((agent) => {
+      [agent].map((agent) => {
         const a = agent.toJSON();
         a.system =
           a.system.substring(0, 32) + (a.system.length > 32 ? "..." : "");

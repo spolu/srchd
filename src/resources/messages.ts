@@ -1,9 +1,7 @@
-import { db } from "../db";
+import { db, Tx } from "../db";
 import { messages } from "../db/schema";
 import { eq, InferSelectModel, and, asc } from "drizzle-orm";
 import { ExperimentResource } from "./experiment";
-import { Err, Ok, Result } from "../lib/result";
-import { normalizeError, SrchdError } from "../lib/error";
 import { AgentResource } from "./agent";
 import { Message } from "../models";
 
@@ -42,7 +40,7 @@ export class MessageResource {
   static async listMessagesByAgent(
     experiment: ExperimentResource,
     agent: AgentResource
-  ): Promise<Result<MessageResource[], SrchdError>> {
+  ): Promise<MessageResource[]> {
     const results = await db
       .select()
       .from(messages)
@@ -54,44 +52,37 @@ export class MessageResource {
       )
       .orderBy(asc(messages.position));
 
-    return new Ok(results.map((msg) => new MessageResource(msg, experiment)));
+    return results.map((msg) => new MessageResource(msg, experiment));
   }
 
   static async create(
     experiment: ExperimentResource,
     agent: AgentResource,
     message: Message,
-    positon: number
-  ): Promise<Result<MessageResource, SrchdError>> {
-    try {
-      const [created] = await db
-        .insert(messages)
-        .values({
-          experiment: experiment.toJSON().id,
-          agent: agent.toJSON().id,
-          ...message,
-          position: positon,
-        })
-        .returning();
+    positon: number,
+    options?: { tx?: Tx }
+  ): Promise<MessageResource> {
+    const executor = options?.tx ?? db;
+    const [created] = await executor
+      .insert(messages)
+      .values({
+        experiment: experiment.toJSON().id,
+        agent: agent.toJSON().id,
+        ...message,
+        position: positon,
+      })
+      .returning();
 
-      return new Ok(new MessageResource(created, experiment));
-    } catch (error) {
-      return new Err(
-        new SrchdError(
-          "resource_creation_error",
-          "Failed to create agent",
-          normalizeError(error)
-        )
-      );
-    }
+    return new MessageResource(created, experiment);
   }
 
   position(): number {
     return this.data.position;
   }
 
-  toJSON(): Message {
+  toJSON(): Message & { id: number } {
     return {
+      id: this.data.id,
       role: this.data.role,
       content: this.data.content,
     };
