@@ -7,7 +7,7 @@ import { Err } from "./lib/result";
 import { ExperimentResource } from "./resources/experiment";
 import { AgentResource } from "./resources/agent";
 import { Runner } from "./runner";
-import { newID4 } from "./lib/utils";
+import { newID4, removeNulls } from "./lib/utils";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(
@@ -147,7 +147,7 @@ agentCmd
 
 agentCmd
   .command("list")
-  .description("List agents")
+  .description("List agents for a given experiment")
   .requiredOption("-e, --experiment <experiment>", "Experiment name")
   .action(async (options) => {
     // Find the experiment first
@@ -256,15 +256,53 @@ agentCmd
   .requiredOption("-e, --experiment <experiment>", "Experiment name")
   .option("-t, --tick", "Run on tick only")
   .action(async (name, options) => {
-    const res = await Runner.builder(options.experiment, name);
-    if (res.isErr()) {
-      return exitWithError(res);
+    let agents: string[] = [];
+
+    if (name === "all") {
+      const experiment = await ExperimentResource.findByName(
+        options.experiment
+      );
+      if (!experiment) {
+        return exitWithError(
+          new Err(
+            new SrchdError(
+              "not_found_error",
+              `Experiment '${options.experiment}' not found.`
+            )
+          )
+        );
+      }
+      agents = (await AgentResource.listByExperiment(experiment)).map(
+        (a) => a.toJSON().name
+      );
+    } else {
+      agents = [name];
     }
 
+    const builders = await Promise.all(
+      agents.map((a) => Runner.builder(options.experiment, a))
+    );
+    for (const res of builders) {
+      if (res.isErr()) {
+        return exitWithError(res);
+      }
+    }
+    const runners = removeNulls(
+      builders.map((res) => {
+        if (res.isOk()) {
+          return res.value.runner;
+        }
+        return null;
+      })
+    );
+
+    // tick all runners concurrently until one fails (or once if --tick)
     while (true) {
-      const tick = await res.value.runner.tick();
-      if (tick.isErr()) {
-        return exitWithError(tick);
+      const tickResults = await Promise.all(runners.map((r) => r.tick()));
+      for (const tick of tickResults) {
+        if (tick.isErr()) {
+          return exitWithError(tick);
+        }
       }
       if (options.tick) {
         return;
