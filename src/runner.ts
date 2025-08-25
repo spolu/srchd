@@ -22,7 +22,7 @@ import {
 } from "./tools/publications";
 import { createClientServerPair, errorToCallToolResult } from "./lib/mcp";
 import { concurrentExecutor } from "./lib/async";
-import { createSystemPromptSelfEditServer } from "./tools/system_prompt_edit";
+import { createSystemPromptSelfEditServer } from "./tools/system_prompt_self_edit";
 import { AnthropicModel } from "./models/anthropic";
 import { assertNever } from "./lib/assert";
 import { db } from "./db";

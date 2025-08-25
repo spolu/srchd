@@ -12,6 +12,8 @@
 - [x] show agent message id on tool use for easier replay
 - [ ] add model to agent definition
 - [ ] batch create agents
+- [ ] tools
+  - [?] Solution signaling
 - [ ] initial expeimentation run
 - [ ] benchmarks
   - [ ] ARC-AGI
