@@ -6,9 +6,9 @@
   - [x] self-edit system prompt
 - [x] representation loop to model (truncation)
       // didn't do agentic loop compression yet
-- [ ] add model to agent definition?
 - [ ] runner main loop implementation
 - [ ] initial expeimentation run
+- [ ] add model to agent definition
 - [ ] benchmarks
   - [ ] ARC-AGI
   - [ ] ARC-AGI 2

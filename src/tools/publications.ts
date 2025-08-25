@@ -6,7 +6,7 @@ import { PublicationResource } from "../resources/publication";
 import { ExperimentResource } from "../resources/experiment";
 import { SrchdError } from "../lib/error";
 
-const REVIEWER_COUNT = 3;
+export const REVIEWER_COUNT = 3;
 
 const SERVER_NAME = "publications";
 const SERVER_VERSION = "0.1.0";

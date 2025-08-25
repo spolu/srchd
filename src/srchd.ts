@@ -12,7 +12,8 @@ import { GeminiModel } from "./models/gemini";
 import { createClientServerPair } from "./lib/mcp";
 import { createSystemPromptSelfEditServer } from "./tools/system_prompt_edit";
 import { newID4 } from "./lib/utils";
-import { createPublicationsServer } from "./tools/publications";
+import { createPublicationsServer, REVIEWER_COUNT } from "./tools/publications";
+import { concurrentExecutor } from "./lib/async";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(
@@ -35,14 +36,6 @@ program
 const experimentCmd = program
   .command("experiment")
   .description("Manage experiments");
-
-experimentCmd
-  .command("run <name>")
-  .description("Run an experiment")
-  .action(async (name) => {
-    console.log(`Running experiment: ${name}`);
-    // TODO: Implement experiment run logic
-  });
 
 experimentCmd
   .command("create <name>")
@@ -76,12 +69,12 @@ experimentCmd
   .command("list")
   .description("List all experiments")
   .action(async () => {
-    console.log("Listing experiments:");
     const experiments = await ExperimentResource.all();
 
     if (experiments.length === 0) {
-      console.log("No experiments found.");
-      return;
+      return exitWithError(
+        new Err(new SrchdError("not_found_error", "No experiments found."))
+      );
     }
 
     console.table(
@@ -163,8 +156,6 @@ agentCmd
   .description("List agents")
   .requiredOption("-e, --experiment <experiment>", "Experiment name")
   .action(async (options) => {
-    console.log(`Listing agents for experiment: ${options.experiment}`);
-
     // Find the experiment first
     const experiment = await ExperimentResource.findByName(options.experiment);
     if (!experiment) {
@@ -181,8 +172,9 @@ agentCmd
     const agents = await AgentResource.listByExperiment(experiment);
 
     if (agents.length === 0) {
-      console.log("No agents found for this experiment.");
-      return;
+      return exitWithError(
+        new Err(new SrchdError("not_found_error", "No agents found."))
+      );
     }
 
     console.table(
@@ -262,6 +254,69 @@ agentCmd
 
     await agent.delete();
     console.log(`Agent '${name}' deleted successfully.`);
+  });
+
+agentCmd
+  .command("run <name>")
+  .description("Run an agent")
+  .requiredOption("-e, --experiment <experiment>", "Experiment name")
+  .action(async (name, options) => {
+    const experiment = await ExperimentResource.findByName(options.experiment);
+
+    if (!experiment) {
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `Experiment '${options.experiment}' not found.`
+          )
+        )
+      );
+    }
+
+    const agent = await AgentResource.findByName(experiment, name);
+    if (!agent) {
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `Agent '${name}' not found in experiment '${options.experiment}'.`
+          )
+        )
+      );
+    }
+
+    const [publicationClient] = await createClientServerPair(
+      createPublicationsServer(experiment, agent)
+    );
+    const [systemPromptSelfEditClient] = await createClientServerPair(
+      createSystemPromptSelfEditServer(agent)
+    );
+
+    const model = new AnthropicModel(
+      {
+        thinking: "low",
+      },
+      "claude-sonnet-4-20250514"
+    );
+    // const model = new GeminiModel({}, "gemini-2.5-flash");
+    const runner = await Runner.initialize(
+      experiment,
+      agent,
+      [publicationClient, systemPromptSelfEditClient],
+      model
+    );
+
+    if (runner.isErr()) {
+      return exitWithError(runner);
+    }
+
+    while (true) {
+      const res = await runner.value.tick();
+      if (res.isErr()) {
+        return exitWithError(res);
+      }
+    }
   });
 
 agentCmd
