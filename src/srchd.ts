@@ -42,7 +42,7 @@ experimentCmd
     console.log(`Creating experiment: ${name}`);
 
     // Read problem from file
-    const problem = await readFileContent(options.problem_file);
+    const problem = await readFileContent(options.problem);
     if (problem.isErr()) {
       return exitWithError(problem);
     }
@@ -89,17 +89,11 @@ agentCmd
     "System prompt file path"
   )
   .option("-n, --name <name>", "Agent name")
+  .option(
+    "-c, --count <number>",
+    "Number of agents to create (name used as prefix)"
+  )
   .action(async (options) => {
-    let name = options.name;
-
-    if (!name) {
-      name = newID4();
-    }
-
-    console.log(
-      `Creating agent: ${name} for experiment: ${options.experiment}`
-    );
-
     // Read system prompt from file
     const system = await readFileContent(options.system);
     if (system.isErr()) {
@@ -119,14 +113,44 @@ agentCmd
       );
     }
 
-    const agent = await AgentResource.create(
-      experiment,
-      { name },
-      { system: system.value }
-    );
+    let count = 1;
+    if (options.count) {
+      count = parseInt(options.count);
+      if (isNaN(count) || count < 1) {
+        return exitWithError(
+          new Err(
+            new SrchdError(
+              "invalid_parameters_error",
+              `Count must be a positive integer.`
+            )
+          )
+        );
+      }
+    }
+
+    const agents = [];
+
+    for (let i = 0; i < count; i++) {
+      const name =
+        count > 1
+          ? options.name
+            ? `${options.name}-${newID4()}`
+            : `${newID4()}`
+          : options.name ?? newID4();
+      console.log(
+        `Creating agent: ${name} for experiment: ${options.experiment}`
+      );
+
+      const agent = await AgentResource.create(
+        experiment,
+        { name },
+        { system: system.value }
+      );
+      agents.push(agent);
+    }
 
     console.table(
-      [agent].map((agent) => {
+      agents.map((agent) => {
         const a = agent.toJSON();
         a.system =
           a.system.substring(0, 32) + (a.system.length > 32 ? "..." : "");

@@ -457,41 +457,37 @@ ${this.agent.toJSON().system}`;
 
     let last = this.messages[this.messages.length - 1];
 
-    await db.transaction(async (tx) => {
-      const agentMessage = await MessageResource.create(
+    const agentMessage = await MessageResource.create(
+      this.experiment,
+      this.agent,
+      m.value,
+      last.position() + 1
+    );
+    this.messages.push(agentMessage);
+
+    m.value.content.forEach((c) => {
+      this.logContent(c, agentMessage.toJSON().id);
+    });
+
+    if (toolResults.length > 0) {
+      const toolResultsMessage = await MessageResource.create(
         this.experiment,
         this.agent,
-        m.value,
-        last.position() + 1,
-        { tx }
+        {
+          role: "user",
+          content: toolResults,
+        },
+        last.position() + 2
       );
-      this.messages.push(agentMessage);
+      this.messages.push(toolResultsMessage);
 
-      m.value.content.forEach((c) => {
-        this.logContent(c, agentMessage.toJSON().id);
+      toolResults.forEach((tr) => {
+        this.logContent(tr, toolResultsMessage.toJSON().id);
+        if (tr.isError) {
+          console.error(tr.content);
+        }
       });
-
-      if (toolResults.length > 0) {
-        const toolResultsMessage = await MessageResource.create(
-          this.experiment,
-          this.agent,
-          {
-            role: "user",
-            content: toolResults,
-          },
-          last.position() + 2,
-          { tx }
-        );
-        this.messages.push(toolResultsMessage);
-
-        toolResults.forEach((tr) => {
-          this.logContent(tr, toolResultsMessage.toJSON().id);
-          if (tr.isError) {
-            console.error(tr.content);
-          }
-        });
-      }
-    });
+    }
 
     return new Ok(undefined);
   }

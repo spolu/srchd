@@ -10,10 +10,10 @@
 - [x] run all
 - [x] transactions in agent/user message creation
 - [x] show agent message id on tool use for easier replay
-- [ ] add model to agent definition
-- [ ] batch create agents
+- [x] batch create agents
 - [ ] tools
   - [?] Solution signaling
+- [ ] add model to agent definition
 - [ ] initial expeimentation run
 - [ ] benchmarks
   - [ ] ARC-AGI
