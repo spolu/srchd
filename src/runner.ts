@@ -1,5 +1,13 @@
 import { JSONSchema7 } from "json-schema";
-import { BaseModel, Message, Tool, ToolResult, ToolUse } from "./models";
+import {
+  BaseModel,
+  Message,
+  TextContent,
+  Thinking,
+  Tool,
+  ToolResult,
+  ToolUse,
+} from "./models";
 import { AgentResource } from "./resources/agent";
 import { ExperimentResource } from "./resources/experiment";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -16,6 +24,7 @@ import { createClientServerPair, errorToCallToolResult } from "./lib/mcp";
 import { concurrentExecutor } from "./lib/async";
 import { createSystemPromptSelfEditServer } from "./tools/system_prompt_edit";
 import { AnthropicModel } from "./models/anthropic";
+import { assertNever } from "./lib/assert";
 
 const MAX_TOKENS_COUNT = 128000;
 
@@ -316,6 +325,13 @@ ${renderListOfPublications(publications, { withAbstract: false })}
     return new Ok(undefined);
   }
 
+  /**
+   * Render past agent messages to the model handling truncation to fit the model context window as
+   * needed.
+   *
+   * @param systemPrompt System prompt to use for the model call.
+   * @param tools Tools to provide to the model.
+   */
   async renderForModel(
     systemPrompt: string,
     tools: Tool[]
@@ -354,6 +370,50 @@ ${renderListOfPublications(publications, { withAbstract: false })}
     return new Err(new SrchdError("agent_loop_overflow_error", "Unreachable"));
   }
 
+  /**
+   * Logs message content during runner execution to display progress.
+   */
+  logContent(c: TextContent | ToolUse | ToolResult | Thinking) {
+    let out = `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m`; // name: bold white
+    switch (c.type) {
+      case "thinking": {
+        out += ` \x1b[90m>\x1b[0m `; // separator: grey
+        out += `\x1b[1m\x1b[95mThinking:\x1b[0m `; // label: bold magenta/purple
+        out += `\x1b[90m${c.thinking.replace(/\n/g, " ")}\x1b[0m`; // text: grey
+        break;
+      }
+      case "text": {
+        out += ` \x1b[90m>\x1b[0m `; // separator: grey
+        out += `\x1b[1m\x1b[38;5;208mText:\x1b[0m `; // label: bold orange (256-color)
+        out += `\x1b[90m${c.text.replace(/\n/g, " ")}\x1b[0m`; // content: grey
+        break;
+      }
+      case "tool_use": {
+        out += ` \x1b[90m>\x1b[0m `; // separator: grey
+        out += `\x1b[1m\x1b[32mToolUse::\x1b[0m `; // label: bold green
+        out += `${c.name}`;
+        break;
+      }
+      case "tool_result": {
+        out += ` \x1b[90m<\x1b[0m `; // separator: grey
+        out += `\x1b[1m\x1b[34mToolResult:\x1b[0m `; // label: bold blue
+        out +=
+          `${c.toolUseName} ` +
+          `${
+            c.isError
+              ? "\x1b[1m\x1b[31m[error]\x1b[0m"
+              : "\x1b[1m\x1b[32m[success]\x1b[0m"
+          }`;
+        break;
+      }
+      default:
+        assertNever(c);
+    }
+  }
+
+  /**
+   * Advance runer by one tick (one agent call + associated tools executions).
+   */
   async tick(): Promise<Result<void, SrchdError>> {
     assert(this.messages !== null, "Runner not initialized with messages.");
 
@@ -396,41 +456,14 @@ ${this.agent.toJSON().system}`;
     }
 
     m.value.content.forEach((c) => {
-      if (c.type === "thinking") {
-        console.log(
-          `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m` + // name: bold white
-            ` \x1b[90m>\x1b[0m ` + // separator: grey
-            `\x1b[1m\x1b[95mThinking:\x1b[0m ` + // label: bold magenta/purple
-            `\x1b[90m${c.thinking.replace(/\n/g, " ")}\x1b[0m` // text: grey
-        );
-      }
-      if (c.type === "text") {
-        console.log(
-          `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m` + // name: bold white
-            ` \x1b[90m>\x1b[0m ` + // separator: grey
-            `\x1b[1m\x1b[38;5;208mText:\x1b[0m ` + // label: bold orange (256-color)
-            `\x1b[90m${c.text.replace(/\n/g, " ")}\x1b[0m` // content: grey
-        );
-      }
-      if (c.type === "tool_use") {
-        console.log(
-          `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m` + // name: bold white
-            ` \x1b[90m>\x1b[0m ` + // separator: grey
-            `\x1b[1m\x1b[32mToolUse::\x1b[0m ` + // label: bold green
-            `${c.name}`
-        );
-      }
+      this.logContent(c);
     });
 
     const toolResults = await concurrentExecutor(
       m.value.content.filter((content) => content.type === "tool_use"),
       async (t: ToolUse) => {
         const res = await this.executeTool(t);
-        console.log(
-          `${this.agent.toJSON().name} < ToolResult: ${res.toolUseName} ${
-            res.isError ? "[error]" : "[success]"
-          }`
-        );
+        this.logContent(res);
         if (res.isError) {
           console.error(res.content);
         }
@@ -471,6 +504,11 @@ ${this.agent.toJSON().system}`;
     return new Ok(undefined);
   }
 
+  /**
+   * Replay a specific agent message tool uses
+   *
+   * @param messageId ID of the agent message to replay.
+   */
   async replayAgentMessage(
     messageId: number
   ): Promise<Result<void, SrchdError>> {
@@ -492,47 +530,14 @@ ${this.agent.toJSON().system}`;
     const content = agentMessage.toJSON().content;
 
     content.forEach((c) => {
-      if (c.type === "thinking") {
-        console.log(
-          `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m` + // name: bold white
-            ` \x1b[90m>\x1b[0m ` + // separator: grey
-            `\x1b[1m\x1b[95mThinking:\x1b[0m ` + // label: bold magenta/purple
-            `\x1b[90m${c.thinking.replace(/\n/g, " ")}\x1b[0m` // text: grey
-        );
-      }
-      if (c.type === "text") {
-        console.log(
-          `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m` + // name: bold white
-            ` \x1b[90m>\x1b[0m ` + // separator: grey
-            `\x1b[1m\x1b[38;5;208mText:\x1b[0m ` + // label: bold orange (256-color)
-            `\x1b[90m${c.text.replace(/\n/g, " ")}\x1b[0m` // content: grey
-        );
-      }
-      if (c.type === "tool_use") {
-        console.log(
-          `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m` + // name: bold white
-            ` \x1b[90m>\x1b[0m ` + // separator: grey
-            `\x1b[1m\x1b[32mToolUse:\x1b[0m ` + // label: bold green
-            `${c.name}`
-        );
-      }
+      this.logContent(c);
     });
 
     const toolResults = await concurrentExecutor(
       content.filter((content) => content.type === "tool_use"),
       async (t: ToolUse) => {
         const res = await this.executeTool(t);
-        console.log(
-          `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m` + // name: bold white
-            ` \x1b[90m<\x1b[0m ` + // separator: grey
-            `\x1b[1m\x1b[34mToolResult:\x1b[0m ` +
-            `${res.toolUseName} ` +
-            `${
-              res.isError
-                ? "\x1b[1m\x1b[31m[error]\x1b[0m"
-                : "\x1b[1m\x1b[32m[success]\x1b[0m"
-            }`
-        );
+        this.logContent(res);
         if (res.isError) {
           console.error(res.content);
         }
