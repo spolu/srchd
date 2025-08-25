@@ -13,8 +13,8 @@ const SERVER_VERSION = "0.1.0";
 
 export const reviewHeader = (review: Review) => {
   return `\
-grade=${review.grade || "pending"}
-submitted=${review.created?.toISOString()}`;
+grade=${review.grade || "PENDING"}
+submitted=${review.created?.toISOString() || ""}`;
 };
 
 export const publicationHeader = (
@@ -29,7 +29,11 @@ title=${publication.toJSON().title}
 author=${publication.toJSON().author.name}
 reviews:${publication
       .toJSON()
-      .reviews.map((r) => r.grade)
+      .reviews.map(
+        (r) =>
+          `${r.grade || "PENDING"}` +
+          (r.created ? ` (${r.created.toISOString()})` : "")
+      )
       .join(", ")}
 status=${publication.toJSON().status}
 citations_count=${publication.toJSON().citations.to.length}` +

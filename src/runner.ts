@@ -355,7 +355,7 @@ ${renderListOfPublications(publications, { withAbstract: false })}
         return res;
       }
       tokenCount = res.value;
-      console.log("TOKEN COUNT: " + tokenCount);
+      // console.log("TOKEN COUNT: " + tokenCount);
 
       if (tokenCount > MAX_TOKENS_COUNT) {
         const res = this.shiftLastAgenticLoopStartPosition();
