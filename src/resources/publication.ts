@@ -17,6 +17,7 @@ import { Err, Ok, Result } from "../lib/result";
 import { normalizeError, SrchdError } from "../lib/error";
 import { newID4, removeNulls } from "../lib/utils";
 import { concurrentExecutor } from "../lib/async";
+import { assertNever } from "../lib/assert";
 
 const REVIEW_SCORES = {
   STRONG_ACCEPT: 2,
@@ -89,6 +90,7 @@ export class PublicationResource {
     experiment: ExperimentResource,
     options: {
       order: "latest" | "citations";
+      status: "PUBLISHED" | "SUBMITTED" | "REJECTED";
       limit: number;
       offset: number;
     }
@@ -96,12 +98,8 @@ export class PublicationResource {
     const { order, limit, offset } = options;
 
     const baseQuery = db
-      .select({
-        ...getTableColumns(publications),
-        citationsCount: count(citations.id),
-      })
+      .select()
       .from(publications)
-      .leftJoin(citations, eq(citations.to, publications.id))
       .where(
         and(
           eq(publications.experiment, experiment.toJSON().id),
@@ -112,11 +110,18 @@ export class PublicationResource {
       .limit(limit)
       .offset(offset);
 
-    const query =
-      order === "latest"
-        ? baseQuery.orderBy(desc(publications.created))
-        : baseQuery.orderBy(desc(count(citations.id)));
-
+    const query = (() => {
+      switch (order) {
+        case "latest": {
+          return baseQuery.orderBy(desc(publications.created));
+        }
+        case "citations": {
+          return baseQuery.orderBy(desc(count(citations.id)));
+        }
+        default:
+          assertNever(order);
+      }
+    })();
     const results = await query;
 
     return await concurrentExecutor(
@@ -167,24 +172,38 @@ export class PublicationResource {
     );
   }
 
-  static async findByReference(
+  static async listByAuthor(
     experiment: ExperimentResource,
-    reference: string
-  ): Promise<PublicationResource | null> {
-    const [result] = await db
+    author: AgentResource
+  ): Promise<PublicationResource[]> {
+    const results = await db
       .select()
       .from(publications)
       .where(
         and(
-          eq(publications.reference, reference),
-          eq(publications.experiment, experiment.toJSON().id)
+          eq(publications.experiment, experiment.toJSON().id),
+          eq(publications.author, author.toJSON().id)
         )
-      )
-      .limit(1);
+      );
 
-    if (!result) return null;
+    return await concurrentExecutor(
+      results,
+      async (data) => {
+        return await new PublicationResource(data, experiment).finalize();
+      },
+      { concurrency: 8 }
+    );
+  }
 
-    return await new PublicationResource(result, experiment).finalize();
+  static async findByReference(
+    experiment: ExperimentResource,
+    reference: string
+  ): Promise<PublicationResource | null> {
+    const [r] = await PublicationResource.findByReferences(experiment, [
+      reference,
+    ]);
+
+    return r ?? null;
   }
 
   static async findByReferences(
@@ -425,7 +444,7 @@ export class PublicationResource {
     const idx = this.reviews.findIndex(
       (r) => r.author === reviewer.toJSON().id
     );
-    if (idx !== -1) {
+    if (idx === -1) {
       return new Err(
         new SrchdError(
           "resource_creation_error",

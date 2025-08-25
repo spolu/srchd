@@ -19,6 +19,26 @@ export class MessageResource {
     this.experiment = experiment;
   }
 
+  static async findById(
+    experiment: ExperimentResource,
+    agent: AgentResource,
+    id: number
+  ): Promise<MessageResource | null> {
+    const result = await db
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.experiment, experiment.toJSON().id),
+          eq(messages.agent, agent.toJSON().id),
+          eq(messages.id, id)
+        )
+      )
+      .limit(1);
+
+    return result[0] ? new MessageResource(result[0], experiment) : null;
+  }
+
   static async listMessagesByAgent(
     experiment: ExperimentResource,
     agent: AgentResource

@@ -8,9 +8,14 @@ import { Err, Ok, Result } from "./lib/result";
 import { MessageResource } from "./resources/messages";
 import assert from "assert";
 import { PublicationResource } from "./resources/publication";
-import { renderListOfPublications } from "./tools/publications";
-import { errorToCallToolResult } from "./lib/mcp";
+import {
+  createPublicationsServer,
+  renderListOfPublications,
+} from "./tools/publications";
+import { createClientServerPair, errorToCallToolResult } from "./lib/mcp";
 import { concurrentExecutor } from "./lib/async";
+import { createSystemPromptSelfEditServer } from "./tools/system_prompt_edit";
+import { AnthropicModel } from "./models/anthropic";
 
 const MAX_TOKENS_COUNT = 128000;
 
@@ -34,6 +39,65 @@ export class Runner {
     this.model = model;
     this.messages = null;
     this.lastAgenticLoopStartPosition = 0;
+  }
+
+  public static async builder(
+    experimentName: string,
+    agentName: string
+  ): Promise<
+    Result<
+      { experiment: ExperimentResource; agent: AgentResource; runner: Runner },
+      SrchdError
+    >
+  > {
+    const experiment = await ExperimentResource.findByName(experimentName);
+    if (!experiment) {
+      return new Err(
+        new SrchdError(
+          "not_found_error",
+          `Experiment '${experimentName}' not found.`
+        )
+      );
+    }
+
+    const agent = await AgentResource.findByName(experiment, agentName);
+    if (!agent) {
+      return new Err(
+        new SrchdError(
+          "not_found_error",
+          `Agent '${agentName}' not found in experiment '${experimentName}'.`
+        )
+      );
+    }
+
+    const [publicationClient] = await createClientServerPair(
+      createPublicationsServer(experiment, agent)
+    );
+    const [systemPromptSelfEditClient] = await createClientServerPair(
+      createSystemPromptSelfEditServer(agent)
+    );
+
+    const model = new AnthropicModel(
+      {
+        thinking: "low",
+      },
+      "claude-sonnet-4-20250514"
+    );
+    const runner = await Runner.initialize(
+      experiment,
+      agent,
+      [publicationClient, systemPromptSelfEditClient],
+      model
+    );
+    if (runner.isErr()) {
+      return runner;
+    }
+
+    return new Ok({
+      experiment,
+      agent,
+      runner: runner.value,
+    });
   }
 
   public static async initialize(
@@ -179,15 +243,25 @@ export class Runner {
         this.agent
       );
 
+    const publications = await PublicationResource.listByAuthor(
+      this.experiment,
+      this.agent
+    );
+
     const m: Message = {
       role: "user",
       content: [
         {
           type: "text",
           text: `\
-Current Time: ${new Date().toISOString()}
-Pending reviews:
-${renderListOfPublications(reviews)}`,
+CURRENT_TIME: ${new Date().toISOString()}
+
+PENDING_REVIEWS:
+${renderListOfPublications(reviews, { withAbstract: false })}
+
+SUBMITTED_PUBLICATIONS:
+${renderListOfPublications(publications, { withAbstract: false })}
+`,
           provider: null,
         },
       ],
@@ -393,6 +467,81 @@ ${this.agent.toJSON().system}`;
       }
       this.messages.push(toolResultsMessage.value);
     }
+
+    return new Ok(undefined);
+  }
+
+  async replayAgentMessage(
+    messageId: number
+  ): Promise<Result<void, SrchdError>> {
+    const agentMessage = await MessageResource.findById(
+      this.experiment,
+      this.agent,
+      messageId
+    );
+
+    if (!agentMessage || agentMessage.toJSON().role !== "agent") {
+      return new Err(
+        new SrchdError(
+          "not_found_error",
+          `Agent message not found for id ${messageId}`
+        )
+      );
+    }
+
+    const content = agentMessage.toJSON().content;
+
+    content.forEach((c) => {
+      if (c.type === "thinking") {
+        console.log(
+          `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m` + // name: bold white
+            ` \x1b[90m>\x1b[0m ` + // separator: grey
+            `\x1b[1m\x1b[95mThinking:\x1b[0m ` + // label: bold magenta/purple
+            `\x1b[90m${c.thinking.replace(/\n/g, " ")}\x1b[0m` // text: grey
+        );
+      }
+      if (c.type === "text") {
+        console.log(
+          `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m` + // name: bold white
+            ` \x1b[90m>\x1b[0m ` + // separator: grey
+            `\x1b[1m\x1b[38;5;208mText:\x1b[0m ` + // label: bold orange (256-color)
+            `\x1b[90m${c.text.replace(/\n/g, " ")}\x1b[0m` // content: grey
+        );
+      }
+      if (c.type === "tool_use") {
+        console.log(
+          `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m` + // name: bold white
+            ` \x1b[90m>\x1b[0m ` + // separator: grey
+            `\x1b[1m\x1b[32mToolUse:\x1b[0m ` + // label: bold green
+            `${c.name}`
+        );
+      }
+    });
+
+    const toolResults = await concurrentExecutor(
+      content.filter((content) => content.type === "tool_use"),
+      async (t: ToolUse) => {
+        const res = await this.executeTool(t);
+        console.log(
+          `\x1b[1m\x1b[37m${this.agent.toJSON().name}\x1b[0m` + // name: bold white
+            ` \x1b[90m<\x1b[0m ` + // separator: grey
+            `\x1b[1m\x1b[34mToolResult:\x1b[0m ` +
+            `${res.toolUseName} ` +
+            `${
+              res.isError
+                ? "\x1b[1m\x1b[31m[error]\x1b[0m"
+                : "\x1b[1m\x1b[32m[success]\x1b[0m"
+            }`
+        );
+        if (res.isError) {
+          console.error(res.content);
+        }
+        return res;
+      },
+      { concurrency: 8 }
+    );
+
+    console.log(JSON.stringify(toolResults, null, 2));
 
     return new Ok(undefined);
   }

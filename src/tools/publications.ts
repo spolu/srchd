@@ -2,7 +2,7 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AgentResource } from "../resources/agent";
 import { errorToCallToolResult } from "../lib/mcp";
-import { PublicationResource } from "../resources/publication";
+import { PublicationResource, Review } from "../resources/publication";
 import { ExperimentResource } from "../resources/experiment";
 import { SrchdError } from "../lib/error";
 
@@ -11,18 +11,50 @@ export const REVIEWER_COUNT = 3;
 const SERVER_NAME = "publications";
 const SERVER_VERSION = "0.1.0";
 
+export const reviewHeader = (review: Review) => {
+  return `\
+grade=${review.grade || "pending"}
+submitted=${review.created?.toISOString()}`;
+};
+
+export const publicationHeader = (
+  publication: PublicationResource,
+  { withAbstract }: { withAbstract: boolean }
+) => {
+  return (
+    `\
+reference=[${publication.toJSON().reference}]
+submitted=${publication.toJSON().created.toISOString()}
+title=${publication.toJSON().title}
+author=${publication.toJSON().author.name}
+reviews:${publication
+      .toJSON()
+      .reviews.map((r) => r.grade)
+      .join(", ")}
+status=${publication.toJSON().status}
+citations_count=${publication.toJSON().citations.to.length}` +
+    (withAbstract
+      ? `\nabstract=${publication.toJSON().abstract.replace("\n", " ")}`
+      : "")
+  );
+};
+
 export const renderListOfPublications = (
-  publications: PublicationResource[]
+  publications: PublicationResource[],
+  {
+    withAbstract,
+  }: {
+    withAbstract: boolean;
+  }
 ) => {
   if (publications.length === 0) {
     return "(0 found)";
   }
   return publications
-    .map((p) => p.toJSON())
     .map((p) => {
-      return `[${p.reference}] ${p.title} {author=${p.author.name} citations=${p.citations.to.length}}`;
+      return publicationHeader(p, { withAbstract });
     })
-    .join("\n");
+    .join("\n\n");
 };
 
 export function createPublicationsServer(
@@ -40,10 +72,17 @@ export function createPublicationsServer(
     "list_publications",
     "List publications available in the system.",
     {
-      order: z
-        .enum(["latest", "citations"])
+      order: z.enum(["latest", "citations"]).describe(
+        `\
+Ordering to use:
+\`latest\` lists the most recent publications.
+\`citations\` lists the most cited publications.`
+      ),
+      status: z
+        .enum(["PUBLISHED", "SUBMITTED", "REJECTED"])
+        .optional()
         .describe(
-          "Ordering to use. `latest` lists the most recent publications, while `citations` lists the most cited publications."
+          `The status of the publications to list. Defaults to \`PUBLISHED\``
         ),
       limit: z
         .number()
@@ -54,11 +93,12 @@ export function createPublicationsServer(
         .optional()
         .describe("Offset for pagination. Defaults to 0."),
     },
-    async ({ order, limit = 10, offset = 0 }) => {
+    async ({ order, status = "PUBLISHED", limit = 10, offset = 0 }) => {
       const publications = await PublicationResource.listPublishedByExperiment(
         experiment,
         {
           order,
+          status,
           limit,
           offset,
         }
@@ -69,7 +109,37 @@ export function createPublicationsServer(
         content: [
           {
             type: "text",
-            text: renderListOfPublications(publications),
+            text: renderListOfPublications(publications, {
+              withAbstract: false,
+            }),
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "get_publication_abstract",
+    "Retrieve the abstracts for a list of publications",
+    {
+      references: z
+        .array(z.string())
+        .describe("List of publication references"),
+    },
+    async ({ references }) => {
+      const publications = await PublicationResource.findByReferences(
+        experiment,
+        references
+      );
+
+      return {
+        isError: false,
+        content: [
+          {
+            type: "text",
+            text: renderListOfPublications(publications, {
+              withAbstract: true,
+            }),
           },
         ],
       };
@@ -99,17 +169,47 @@ export function createPublicationsServer(
           {
             type: "text",
             text: `\
-[${publication.toJSON().reference}] ${publication.toJSON().title}
-author: ${publication.toJSON().author.name}
-citations=${publication.toJSON().citations.to.length}
-
-ABSTRACT
-
-${publication.toJSON().abstract}
-
-CONTENT
+${publicationHeader(publication, { withAbstract: true })}
 
 ${publication.toJSON().content}`,
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "get_publication_reviews",
+    "Retrieve a specific publication reviews.",
+    {
+      reference: z.string().describe("Reference of the publication."),
+    },
+    async ({ reference }) => {
+      const publication = await PublicationResource.findByReference(
+        experiment,
+        reference
+      );
+      if (!publication) {
+        return errorToCallToolResult(
+          new SrchdError("not_found_error", "Publication not found")
+        );
+      }
+
+      return {
+        isError: false,
+        content: [
+          {
+            type: "text",
+            text: `\
+${publication
+  .toJSON()
+  .reviews.map((r) => {
+    return `\
+REVIEW:
+${reviewHeader(r)}
+${r.content}`;
+  })
+  .join("\n\n")}`,
           },
         ],
       };
@@ -121,8 +221,14 @@ ${publication.toJSON().content}`,
     "Submit a new publication for review and publication.",
     {
       title: z.string().describe("Title of the publication."),
-      abstract: z.string().describe("Abstract or summary of the publication."),
-      content: z.string().describe("Full content of the publication."),
+      abstract: z
+        .string()
+        .describe("Abstract of the publication (avoid newlines)."),
+      content: z
+        .string()
+        .describe(
+          "Full content of the publication. Use [{ref}] or [{ref},{ref}] inlined in content for citations."
+        ),
     },
     async ({ title, abstract, content }) => {
       const pendingReviews =
@@ -182,8 +288,8 @@ ${publication.toJSON().content}`,
   );
 
   server.tool(
-    "get_review_requests",
-    "Get pending review requests received.",
+    "list_received_review_requests",
+    "List pending review requests received by the caller.",
     {},
     async () => {
       const publications =
@@ -197,7 +303,33 @@ ${publication.toJSON().content}`,
         content: [
           {
             type: "text",
-            text: renderListOfPublications(publications),
+            text: renderListOfPublications(publications, {
+              withAbstract: false,
+            }),
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "list_submitted_publications",
+    "List publications submitted by the caller.",
+    {},
+    async () => {
+      const publications = await PublicationResource.listByAuthor(
+        experiment,
+        agent
+      );
+
+      return {
+        isError: false,
+        content: [
+          {
+            type: "text",
+            text: renderListOfPublications(publications, {
+              withAbstract: false,
+            }),
           },
         ],
       };
@@ -243,7 +375,7 @@ ${publication.toJSON().content}`,
         content: [
           {
             type: "text",
-            text: `Review submitted for publication [${publication}].`,
+            text: `Review submitted for publication [${reference}].`,
           },
         ],
       };

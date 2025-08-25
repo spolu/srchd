@@ -53,6 +53,14 @@ export function stringEdit({
   const matches = content.match(regex);
   const occurrences = matches ? matches.length : 0;
 
+  // console.log("----------------------------");
+  // console.log(content);
+  // console.log("----------------------------");
+  // console.log(oldStr);
+  // console.log("----------------------------");
+  // console.log(newStr);
+  // console.log("----------------------------");
+
   if (occurrences === 0) {
     return new Err(
       new SrchdError(

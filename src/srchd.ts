@@ -7,13 +7,7 @@ import { Err } from "./lib/result";
 import { ExperimentResource } from "./resources/experiment";
 import { AgentResource } from "./resources/agent";
 import { Runner } from "./runner";
-import { AnthropicModel } from "./models/anthropic";
-import { GeminiModel } from "./models/gemini";
-import { createClientServerPair } from "./lib/mcp";
-import { createSystemPromptSelfEditServer } from "./tools/system_prompt_edit";
 import { newID4 } from "./lib/utils";
-import { createPublicationsServer, REVIEWER_COUNT } from "./tools/publications";
-import { concurrentExecutor } from "./lib/async";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(
@@ -260,123 +254,37 @@ agentCmd
   .command("run <name>")
   .description("Run an agent")
   .requiredOption("-e, --experiment <experiment>", "Experiment name")
+  .option("-t, --tick", "Run on tick only")
   .action(async (name, options) => {
-    const experiment = await ExperimentResource.findByName(options.experiment);
-
-    if (!experiment) {
-      return exitWithError(
-        new Err(
-          new SrchdError(
-            "not_found_error",
-            `Experiment '${options.experiment}' not found.`
-          )
-        )
-      );
-    }
-
-    const agent = await AgentResource.findByName(experiment, name);
-    if (!agent) {
-      return exitWithError(
-        new Err(
-          new SrchdError(
-            "not_found_error",
-            `Agent '${name}' not found in experiment '${options.experiment}'.`
-          )
-        )
-      );
-    }
-
-    const [publicationClient] = await createClientServerPair(
-      createPublicationsServer(experiment, agent)
-    );
-    const [systemPromptSelfEditClient] = await createClientServerPair(
-      createSystemPromptSelfEditServer(agent)
-    );
-
-    const model = new AnthropicModel(
-      {
-        thinking: "low",
-      },
-      "claude-sonnet-4-20250514"
-    );
-    // const model = new GeminiModel({}, "gemini-2.5-flash");
-    const runner = await Runner.initialize(
-      experiment,
-      agent,
-      [publicationClient, systemPromptSelfEditClient],
-      model
-    );
-
-    if (runner.isErr()) {
-      return exitWithError(runner);
+    const res = await Runner.builder(options.experiment, name);
+    if (res.isErr()) {
+      return exitWithError(res);
     }
 
     while (true) {
-      const res = await runner.value.tick();
-      if (res.isErr()) {
-        return exitWithError(res);
+      const tick = await res.value.runner.tick();
+      if (tick.isErr()) {
+        return exitWithError(tick);
+      }
+      if (options.tick) {
+        return;
       }
     }
   });
 
 agentCmd
-  .command("test <name>")
-  .description("Test an agent")
+  .command("replay <name> <message>")
+  .description("Replay an agent message (warning: tools side effects)")
   .requiredOption("-e, --experiment <experiment>", "Experiment name")
-  .action(async (name, options) => {
-    // Find the experiment first
-    const experiment = await ExperimentResource.findByName(options.experiment);
-    if (!experiment) {
-      return exitWithError(
-        new Err(
-          new SrchdError(
-            "not_found_error",
-            `Experiment '${options.experiment}' not found.`
-          )
-        )
-      );
-    }
-
-    const agent = await AgentResource.findByName(experiment, name);
-    if (!agent) {
-      return exitWithError(
-        new Err(
-          new SrchdError(
-            "not_found_error",
-            `Agent '${name}' not found in experiment '${options.experiment}'.`
-          )
-        )
-      );
-    }
-
-    const [publicationClient] = await createClientServerPair(
-      createPublicationsServer(experiment, agent)
-    );
-    const [systemPromptSelfEditClient] = await createClientServerPair(
-      createSystemPromptSelfEditServer(agent)
-    );
-
-    const model = new AnthropicModel(
-      {
-        thinking: "low",
-      },
-      "claude-sonnet-4-20250514"
-    );
-    // const model = new GeminiModel({}, "gemini-2.5-flash");
-    const runner = await Runner.initialize(
-      experiment,
-      agent,
-      [publicationClient, systemPromptSelfEditClient],
-      model
-    );
-
-    if (runner.isErr()) {
-      return exitWithError(runner);
-    }
-
-    const res = await runner.value.tick();
+  .action(async (name, message, options) => {
+    const res = await Runner.builder(options.experiment, name);
     if (res.isErr()) {
       return exitWithError(res);
+    }
+
+    const replay = await res.value.runner.replayAgentMessage(parseInt(message));
+    if (replay.isErr()) {
+      return exitWithError(replay);
     }
   });
 
