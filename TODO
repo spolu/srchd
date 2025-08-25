@@ -11,6 +11,7 @@
 - [x] transactions in agent/user message creation
 - [x] show agent message id on tool use for easier replay
 - [ ] add model to agent definition
+- [ ] batch create agents
 - [ ] initial expeimentation run
 - [ ] benchmarks
   - [ ] ARC-AGI
