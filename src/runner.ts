@@ -25,7 +25,8 @@ import { concurrentExecutor } from "./lib/async";
 import { createSystemPromptSelfEditServer } from "./tools/system_prompt_self_edit";
 import { AnthropicModel } from "./models/anthropic";
 import { assertNever } from "./lib/assert";
-import { db } from "./db";
+import { createGoalSolutionServer } from "./tools/goal_solution";
+// import { GeminiModel } from "./models/gemini";
 
 const MAX_TOKENS_COUNT = 128000;
 
@@ -86,17 +87,21 @@ export class Runner {
     const [systemPromptSelfEditClient] = await createClientServerPair(
       createSystemPromptSelfEditServer(agent)
     );
+    const [goalSolutionClient] = await createClientServerPair(
+      createGoalSolutionServer(experiment, agent)
+    );
 
     const model = new AnthropicModel(
       {
-        thinking: "low",
+        thinking: "high",
       },
       "claude-sonnet-4-20250514"
     );
+    // const model = new GeminiModel({}, "gemini-2.5-flash");
     const runner = await Runner.initialize(
       experiment,
       agent,
-      [publicationClient, systemPromptSelfEditClient],
+      [publicationClient, systemPromptSelfEditClient, goalSolutionClient],
       model
     );
     if (runner.isErr()) {
@@ -339,6 +344,15 @@ ${renderListOfPublications(publications, { withAbstract: false })}
         tools
       );
       if (res.isErr()) {
+        console.log(
+          "Agent: " + this.agent.toJSON().name + " " + this.agent.toJSON().id
+        );
+        console.log(messages.length);
+        messages.forEach((m) => {
+          console.log(m.role);
+          console.log(m.content);
+          console.log("----");
+        });
         return res;
       }
       tokenCount = res.value;
@@ -445,6 +459,15 @@ ${this.agent.toJSON().system}`;
     );
     if (m.isErr()) {
       return m;
+    }
+
+    if (m.value.content.length === 0) {
+      console.log(
+        `WARNING: Skipping empty agent response content for agent ${
+          this.agent.toJSON().name
+        }`
+      );
+      return new Ok(undefined);
     }
 
     const toolResults = await concurrentExecutor(

@@ -11,15 +11,16 @@
 - [x] transactions in agent/user message creation
 - [x] show agent message id on tool use for easier replay
 - [x] batch create agents
-- [ ] tools
-  - [?] Solution signaling
+- [x] tools
+  - [x] Solution signaling
+- [x] benchmarks
+  - [x] 2025 IMO
+
 - [ ] add model to agent definition
 - [ ] initial expeimentation run
 - [ ] benchmarks
   - [ ] ARC-AGI
   - [ ] ARC-AGI 2
-  - [ ] Math
-
 
   // later
 - [ ] UI
