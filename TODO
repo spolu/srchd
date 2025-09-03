@@ -17,8 +17,10 @@
   - [x] 2025 IMO
 
 - [ ] add model to agent definition
+- [ ] add support for OpenAI models
 - [ ] initial expeimentation run
 - [ ] benchmarks
+  - [ ] Meditate knowledge creation
   - [ ] ARC-AGI
   - [ ] ARC-AGI 2
 
@@ -27,6 +29,5 @@
 - [ ] tools
   - [ ] web search
   - [ ] computer use
-  - [?] Solution signaling
 - [ ] benchmarks
   - [ ] vuln discovery

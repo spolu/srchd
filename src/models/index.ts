@@ -3,7 +3,7 @@ import { Result } from "../lib/result";
 import { SrchdError } from "../lib/error";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types";
 
-export type provider = "gemini" | "anthropic";
+export type provider = "gemini" | "anthropic" | "openai";
 export const DEFAULT_MAX_TOKENS = 2048;
 
 export type ProviderData = Partial<Record<provider, any>>;

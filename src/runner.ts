@@ -26,7 +26,8 @@ import { createSystemPromptSelfEditServer } from "./tools/system_prompt_self_edi
 import { AnthropicModel } from "./models/anthropic";
 import { assertNever } from "./lib/assert";
 import { createGoalSolutionServer } from "./tools/goal_solution";
-// import { GeminiModel } from "./models/gemini";
+import { GeminiModel } from "./models/gemini";
+import { OpenAIModel } from "./models/openai";
 
 const MAX_TOKENS_COUNT = 128000;
 
@@ -91,13 +92,19 @@ export class Runner {
       createGoalSolutionServer(experiment, agent)
     );
 
-    const model = new AnthropicModel(
-      {
-        thinking: "high",
-      },
-      "claude-sonnet-4-20250514"
-    );
+    // const model = new AnthropicModel(
+    //   {
+    //     thinking: "high",
+    //   },
+    //   "claude-sonnet-4-20250514"
+    //  );
     // const model = new GeminiModel({}, "gemini-2.5-flash");
+    const model = new OpenAIModel(
+      {
+        thinking: "none",
+      },
+      "gpt-5"
+    );
     const runner = await Runner.initialize(
       experiment,
       agent,

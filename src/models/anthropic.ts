@@ -53,7 +53,6 @@ export class AnthropicModel extends BaseModel {
               return {
                 type: "tool_result",
                 tool_use_id: content.toolUseId,
-                // content: content.content,
                 content: content.content.map((content) => {
                   switch (content.type) {
                     case "text":
