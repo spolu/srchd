@@ -10,22 +10,24 @@
 - [x] run all
 - [x] transactions in agent/user message creation
 - [x] show agent message id on tool use for easier replay
+- [x] batch create agents
+- [x] tools
+  - [x] Solution signaling
+- [x] benchmarks
+  - [x] 2025 IMO
+
 - [ ] add model to agent definition
-- [ ] batch create agents
-- [ ] tools
-  - [?] Solution signaling
+- [ ] add support for OpenAI models
 - [ ] initial expeimentation run
 - [ ] benchmarks
+  - [ ] Meditate knowledge creation
   - [ ] ARC-AGI
   - [ ] ARC-AGI 2
-  - [ ] Math
-
 
   // later
 - [ ] UI
 - [ ] tools
   - [ ] web search
   - [ ] computer use
-  - [?] Solution signaling
 - [ ] benchmarks
   - [ ] vuln discovery

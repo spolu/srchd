@@ -1,4 +1,5 @@
 export type ErrorCode =
+  | "invalid_parameters_error"
   | "reading_file_error"
   | "not_found_error"
   | "reference_not_found_error"

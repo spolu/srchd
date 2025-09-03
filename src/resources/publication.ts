@@ -9,6 +9,7 @@ import {
   inArray,
   count,
   isNull,
+  getTableColumns,
 } from "drizzle-orm";
 import { ExperimentResource } from "./experiment";
 import { Agent, AgentResource } from "./agent";
@@ -97,8 +98,12 @@ export class PublicationResource {
     const { order, limit, offset } = options;
 
     const baseQuery = db
-      .select()
+      .select({
+        ...getTableColumns(publications),
+        citationsCount: count(citations.id),
+      })
       .from(publications)
+      .leftJoin(citations, eq(citations.to, publications.id))
       .where(
         and(
           eq(publications.experiment, experiment.toJSON().id),

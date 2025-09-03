@@ -25,7 +25,9 @@ import { concurrentExecutor } from "./lib/async";
 import { createSystemPromptSelfEditServer } from "./tools/system_prompt_self_edit";
 import { AnthropicModel } from "./models/anthropic";
 import { assertNever } from "./lib/assert";
-import { db } from "./db";
+import { createGoalSolutionServer } from "./tools/goal_solution";
+import { GeminiModel } from "./models/gemini";
+import { OpenAIModel } from "./models/openai";
 
 const MAX_TOKENS_COUNT = 128000;
 
@@ -86,17 +88,27 @@ export class Runner {
     const [systemPromptSelfEditClient] = await createClientServerPair(
       createSystemPromptSelfEditServer(agent)
     );
+    const [goalSolutionClient] = await createClientServerPair(
+      createGoalSolutionServer(experiment, agent)
+    );
 
-    const model = new AnthropicModel(
+    // const model = new AnthropicModel(
+    //   {
+    //     thinking: "high",
+    //   },
+    //   "claude-sonnet-4-20250514"
+    //  );
+    // const model = new GeminiModel({}, "gemini-2.5-flash");
+    const model = new OpenAIModel(
       {
-        thinking: "low",
+        thinking: "none",
       },
-      "claude-sonnet-4-20250514"
+      "gpt-5"
     );
     const runner = await Runner.initialize(
       experiment,
       agent,
-      [publicationClient, systemPromptSelfEditClient],
+      [publicationClient, systemPromptSelfEditClient, goalSolutionClient],
       model
     );
     if (runner.isErr()) {
@@ -339,6 +351,15 @@ ${renderListOfPublications(publications, { withAbstract: false })}
         tools
       );
       if (res.isErr()) {
+        console.log(
+          "Agent: " + this.agent.toJSON().name + " " + this.agent.toJSON().id
+        );
+        console.log(messages.length);
+        messages.forEach((m) => {
+          console.log(m.role);
+          console.log(m.content);
+          console.log("----");
+        });
         return res;
       }
       tokenCount = res.value;
@@ -447,6 +468,15 @@ ${this.agent.toJSON().system}`;
       return m;
     }
 
+    if (m.value.content.length === 0) {
+      console.log(
+        `WARNING: Skipping empty agent response content for agent ${
+          this.agent.toJSON().name
+        }`
+      );
+      return new Ok(undefined);
+    }
+
     const toolResults = await concurrentExecutor(
       m.value.content.filter((content) => content.type === "tool_use"),
       async (t: ToolUse) => {
@@ -457,41 +487,37 @@ ${this.agent.toJSON().system}`;
 
     let last = this.messages[this.messages.length - 1];
 
-    await db.transaction(async (tx) => {
-      const agentMessage = await MessageResource.create(
+    const agentMessage = await MessageResource.create(
+      this.experiment,
+      this.agent,
+      m.value,
+      last.position() + 1
+    );
+    this.messages.push(agentMessage);
+
+    m.value.content.forEach((c) => {
+      this.logContent(c, agentMessage.toJSON().id);
+    });
+
+    if (toolResults.length > 0) {
+      const toolResultsMessage = await MessageResource.create(
         this.experiment,
         this.agent,
-        m.value,
-        last.position() + 1,
-        { tx }
+        {
+          role: "user",
+          content: toolResults,
+        },
+        last.position() + 2
       );
-      this.messages.push(agentMessage);
+      this.messages.push(toolResultsMessage);
 
-      m.value.content.forEach((c) => {
-        this.logContent(c, agentMessage.toJSON().id);
+      toolResults.forEach((tr) => {
+        this.logContent(tr, toolResultsMessage.toJSON().id);
+        if (tr.isError) {
+          console.error(tr.content);
+        }
       });
-
-      if (toolResults.length > 0) {
-        const toolResultsMessage = await MessageResource.create(
-          this.experiment,
-          this.agent,
-          {
-            role: "user",
-            content: toolResults,
-          },
-          last.position() + 2,
-          { tx }
-        );
-        this.messages.push(toolResultsMessage);
-
-        toolResults.forEach((tr) => {
-          this.logContent(tr, toolResultsMessage.toJSON().id);
-          if (tr.isError) {
-            console.error(tr.content);
-          }
-        });
-      }
-    });
+    }
 
     return new Ok(undefined);
   }

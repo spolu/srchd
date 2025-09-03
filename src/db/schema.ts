@@ -191,3 +191,42 @@ export const reviews = sqliteTable(
   },
   (t) => [unique().on(t.author, t.publication)]
 );
+
+export const solutions = sqliteTable(
+  "solutions",
+  {
+    id: integer("id").primaryKey(),
+    created: integer("created", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated: integer("updated", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+
+    experiment: integer("experiment")
+      .notNull()
+      .references(() => experiments.id),
+    // null when thre is no current solution (anymore)
+    publication: integer("publication").references(() => publications.id),
+    agent: integer("agent")
+      .notNull()
+      .references(() => agents.id),
+
+    reason: text("reason", {
+      enum: [
+        "no_previous",
+        "previous_wrong",
+        "previous_improved",
+        "new_approach",
+      ],
+    }).notNull(),
+    rationale: text("content").notNull(),
+  },
+  (t) => [
+    index("solutions_idx_experiment_agent_created").on(
+      t.experiment,
+      t.agent,
+      t.created
+    ),
+  ]
+);

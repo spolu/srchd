@@ -151,13 +151,10 @@ export class GeminiModel extends BaseModel {
       const candidate = response.candidates[0];
       const content = candidate.content;
       if (!content) {
-        return new Err(
-          new SrchdError(
-            "model_error",
-            "Gemini model returned no content",
-            null
-          )
-        );
+        return new Ok({
+          role: "agent",
+          content: [],
+        });
       }
 
       return new Ok({
@@ -239,17 +236,7 @@ export class GeminiModel extends BaseModel {
           ...this.contents(messages),
         ],
         config: {
-          tools: [
-            {
-              functionDeclarations: tools.map((tool) => {
-                return {
-                  name: tool.name,
-                  description: tool.description || "",
-                  parametersJsonSchema: tool.inputSchema,
-                } as FunctionDeclaration;
-              }),
-            },
-          ],
+          // No tools for countTokens
         },
       });
 

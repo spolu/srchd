@@ -126,7 +126,7 @@ export class AgentResource {
   }
 
   async delete(): Promise<void> {
-    await db.delete(evolutions).where(eq(evolutions.id, this.data.id));
+    await db.delete(evolutions).where(eq(evolutions.agent, this.data.id));
     await db.delete(agents).where(eq(agents.id, this.data.id));
   }
 
@@ -146,7 +146,7 @@ export class AgentResource {
         })
         .returning();
 
-      this.evolutions = [...this.evolutions, created];
+      this.evolutions = [created, ...this.evolutions];
       return new Ok(this);
     } catch (error) {
       return new Err(
