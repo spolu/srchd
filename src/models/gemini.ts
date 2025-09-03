@@ -236,17 +236,7 @@ export class GeminiModel extends BaseModel {
           ...this.contents(messages),
         ],
         config: {
-          // tools: [
-          //   {
-          //     functionDeclarations: tools.map((tool) => {
-          //       return {
-          //         name: tool.name,
-          //         description: tool.description || "",
-          //         parametersJsonSchema: tool.inputSchema,
-          //       } as FunctionDeclaration;
-          //     }),
-          //   },
-          // ],
+          // No tools for countTokens
         },
       });
 
