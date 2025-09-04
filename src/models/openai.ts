@@ -7,6 +7,9 @@ import { Err, Ok, Result } from "../lib/result";
 import { assertNever } from "../lib/assert";
 
 export type OpenAIModels = "gpt-5" | "gpt-5-mini" | "gpt-5-nano" | "gpt-4.1";
+export function isOpenAIModel(model: string): model is OpenAIModels {
+  return ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-4.1"].includes(model);
+}
 
 export class OpenAIModel extends BaseModel {
   private client: OpenAI;

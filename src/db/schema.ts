@@ -5,7 +5,10 @@ import {
   unique,
   index,
 } from "drizzle-orm/sqlite-core";
-import { Message } from "../models";
+import { Message, provider, ThinkingConfig } from "../models";
+import { AnthropicModels } from "../models/anthropic";
+import { GeminiModels } from "../models/gemini";
+import { OpenAIModels } from "../models/openai";
 
 export const experiments = sqliteTable(
   "experiments",
@@ -39,6 +42,11 @@ export const agents = sqliteTable(
       .notNull()
       .references(() => experiments.id),
     name: text("name").notNull(),
+    provider: text("provider").$type<provider>().notNull(),
+    model: text("model")
+      .$type<AnthropicModels | GeminiModels | OpenAIModels>()
+      .notNull(),
+    thinking: text("thinking").$type<ThinkingConfig>().notNull(),
   },
   (t) => [unique().on(t.name, t.experiment)]
 );

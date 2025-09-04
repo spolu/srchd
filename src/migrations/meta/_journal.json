@@ -50,6 +50,20 @@
       "when": 1756159833985,
       "tag": "0006_magical_ulik",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1756985188922,
+      "tag": "0007_military_zaran",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1756985479294,
+      "tag": "0008_organic_agent_zero",
+      "breakpoints": true
     }
   ]
 }

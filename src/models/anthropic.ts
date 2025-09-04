@@ -17,6 +17,9 @@ const DEFAULT_LOW_THINKING_TOKENS = 4096;
 const DEFAULT_HIGH_THINKING_TOKENS = 8192;
 
 export type AnthropicModels = "claude-sonnet-4-20250514";
+export function isAnthropicModel(model: string): model is AnthropicModels {
+  return ["claude-sonnet-4-20250514"].includes(model);
+}
 
 export class AnthropicModel extends BaseModel {
   private client: Anthropic;

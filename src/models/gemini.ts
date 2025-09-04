@@ -22,6 +22,13 @@ export type GeminiModels =
   | "gemini-2.5-pro"
   | "gemini-2.5-flash"
   | "gemini-2.5-flash-lite";
+export function isGeminiModel(model: string): model is GeminiModels {
+  return [
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+  ].includes(model);
+}
 
 export class GeminiModel extends BaseModel {
   private client: GoogleGenAI;
