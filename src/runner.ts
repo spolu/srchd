@@ -23,11 +23,11 @@ import {
 import { createClientServerPair, errorToCallToolResult } from "./lib/mcp";
 import { concurrentExecutor } from "./lib/async";
 import { createSystemPromptSelfEditServer } from "./tools/system_prompt_self_edit";
-import { AnthropicModel } from "./models/anthropic";
+import { AnthropicModel, AnthropicModels } from "./models/anthropic";
 import { assertNever } from "./lib/assert";
 import { createGoalSolutionServer } from "./tools/goal_solution";
-import { GeminiModel } from "./models/gemini";
-import { OpenAIModel } from "./models/openai";
+import { GeminiModel, GeminiModels } from "./models/gemini";
+import { OpenAIModel, OpenAIModels } from "./models/openai";
 
 const MAX_TOKENS_COUNT = 128000;
 
@@ -92,19 +92,35 @@ export class Runner {
       createGoalSolutionServer(experiment, agent)
     );
 
-    // const model = new AnthropicModel(
-    //   {
-    //     thinking: "high",
-    //   },
-    //   "claude-sonnet-4-20250514"
-    //  );
-    // const model = new GeminiModel({}, "gemini-2.5-flash");
-    const model = new OpenAIModel(
-      {
-        thinking: "none",
-      },
-      "gpt-5"
-    );
+    const model = (() => {
+      const provider = agent.toJSON().provider;
+      switch (provider) {
+        case "anthropic":
+          return new AnthropicModel(
+            {
+              thinking: agent.toJSON().thinking,
+            },
+            agent.toJSON().model as AnthropicModels
+          );
+        case "gemini":
+          return new GeminiModel(
+            {
+              thinking: agent.toJSON().thinking,
+            },
+            agent.toJSON().model as GeminiModels
+          );
+        case "openai":
+          return new OpenAIModel(
+            {
+              thinking: agent.toJSON().thinking,
+            },
+            agent.toJSON().model as OpenAIModels
+          );
+        default:
+          assertNever(provider);
+      }
+    })();
+
     const runner = await Runner.initialize(
       experiment,
       agent,
