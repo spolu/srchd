@@ -4,6 +4,10 @@ import { SrchdError } from "../lib/error";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types";
 
 export type provider = "gemini" | "anthropic" | "openai";
+export function isProvider(str: string): str is provider {
+  return ["gemini", "anthropic", "openai"].includes(str);
+}
+
 export const DEFAULT_MAX_TOKENS = 2048;
 
 export type ProviderData = Partial<Record<provider, any>>;
@@ -49,9 +53,14 @@ export function isUserMessageWithText(
   );
 }
 
+export type ThinkingConfig = "high" | "low" | "none";
+export function isThinkingConfig(str: string): str is ThinkingConfig {
+  return ["high", "low", "none"].includes(str);
+}
+
 export interface ModelConfig {
   maxTokens?: number;
-  thinking?: "high" | "low" | "none";
+  thinking?: ThinkingConfig;
 }
 
 export interface Tool {

@@ -1,0 +1,3 @@
+[submodule "problems/ARC-AGI-2/vendor"]
+	path = problems/ARC-AGI-2/vendor
+	url = git@github.com:arcprize/ARC-AGI-2.git

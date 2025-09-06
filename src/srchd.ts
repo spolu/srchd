@@ -8,6 +8,10 @@ import { ExperimentResource } from "./resources/experiment";
 import { AgentResource } from "./resources/agent";
 import { Runner } from "./runner";
 import { newID4, removeNulls } from "./lib/utils";
+import { isProvider, isThinkingConfig } from "./models";
+import { isAnthropicModel } from "./models/anthropic";
+import { isOpenAIModel } from "./models/openai";
+import { isGeminiModel } from "./models/gemini";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(
@@ -89,6 +93,12 @@ agentCmd
     "System prompt file path"
   )
   .option("-n, --name <name>", "Agent name")
+  .option("-p, --provider <provider>", "AI provider (default: anthropic)")
+  .option("-m, --model <model>", "AI model (default: claude-sonnet-4-20250514)")
+  .option(
+    "-t, --thinking <thinking>",
+    "Thinking configuration (none | low | high, default: low)"
+  )
   .option(
     "-c, --count <number>",
     "Number of agents to create (name used as prefix)"
@@ -140,10 +150,57 @@ agentCmd
       console.log(
         `Creating agent: ${name} for experiment: ${options.experiment}`
       );
+      const provider = options.provider || "anthropic";
+      const model = options.model || "claude-sonnet-4-20250514";
+      const thinking = options.thinking || "low";
+
+      if (!isProvider(provider)) {
+        return exitWithError(
+          new Err(
+            new SrchdError(
+              "invalid_parameters_error",
+              `Provider '${provider}' is not supported.`
+            )
+          )
+        );
+      }
+
+      if (
+        !(
+          isAnthropicModel(model) ||
+          isOpenAIModel(model) ||
+          isGeminiModel(model)
+        )
+      ) {
+        return exitWithError(
+          new Err(
+            new SrchdError(
+              "invalid_parameters_error",
+              `Model '${model}' is not supported.`
+            )
+          )
+        );
+      }
+
+      if (!isThinkingConfig(thinking)) {
+        return exitWithError(
+          new Err(
+            new SrchdError(
+              "invalid_parameters_error",
+              `Thinking configuration '${thinking}' is not valid. Use 'none', 'low', or 'high'.`
+            )
+          )
+        );
+      }
 
       const agent = await AgentResource.create(
         experiment,
-        { name },
+        {
+          name,
+          provider,
+          model,
+          thinking,
+        },
         { system: system.value }
       );
       agents.push(agent);
