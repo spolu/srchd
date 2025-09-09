@@ -15,19 +15,18 @@
   - [x] Solution signaling
 - [x] benchmarks
   - [x] 2025 IMO
-- [~] add support for OpenAI models
 - [x] initial expeimentation run
 - [x] add model to agent definition
+- [x] benchmarks
+  - [x] ARC-AGI 2
+- [x] add support for OpenAI models
 
-- [ ] benchmarks
-  - [ ] ARC-AGI 2
-  - [ ] Meditate knowledge creation
-  - [ ] ARC-AGI
+- [ ] UI
 
   // later
-- [ ] UI
 - [ ] tools
   - [ ] web search
   - [ ] computer use
 - [ ] benchmarks
+  - [ ] Meditate knowledge creation
   - [ ] vuln discovery
