@@ -20,6 +20,7 @@
     "better-sqlite3": "^12.2.0",
     "commander": "^14.0.0",
     "drizzle-orm": "^0.44.3",
-    "openai": "^5.16.0"
+    "openai": "^5.16.0",
+    "tiktoken": "^1.0.22"
   }
 }
