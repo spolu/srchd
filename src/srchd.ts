@@ -369,17 +369,33 @@ agentCmd
       })
     );
 
-    // tick all runners concurrently until one fails (or once if --tick)
-    while (true) {
+    // Run agents independently - each agent ticks without waiting for others
+    if (options.tick) {
+      // For single tick, run all concurrently and wait for completion
       const tickResults = await Promise.all(runners.map((r) => r.tick()));
       for (const tick of tickResults) {
         if (tick.isErr()) {
           return exitWithError(tick);
         }
       }
-      if (options.tick) {
-        return;
+      return;
+    }
+
+    // For continuous running, start each agent in its own independent loop
+    const runnerPromises = runners.map(async (runner) => {
+      while (true) {
+        const tick = await runner.tick();
+        if (tick.isErr()) {
+          throw tick.error;
+        }
       }
+    });
+
+    // Wait for any agent to fail, then exit
+    try {
+      await Promise.all(runnerPromises);
+    } catch (error) {
+      return exitWithError(new Err(error as any));
     }
   });
 
