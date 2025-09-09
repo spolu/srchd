@@ -21,6 +21,7 @@
   - [x] ARC-AGI 2
 - [x] add support for OpenAI models
 
+- [ ] race runners instead of waiting for full tick
 - [ ] UI
 
   // later

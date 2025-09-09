@@ -165,11 +165,15 @@ export class OpenAIModel extends BaseModel {
         instructions: prompt,
         input,
         tool_choice: this.convertToolChoice(toolChoice),
-        include: ["reasoning.encrypted_content"],
-        reasoning: {
-          effort: this.convertThinking(this.config.thinking),
-          summary: "auto",
-        },
+        include:
+          this.model === "gpt-4.1" ? [] : ["reasoning.encrypted_content"],
+        reasoning:
+          this.model === "gpt-4.1"
+            ? undefined
+            : {
+                effort: this.convertThinking(this.config.thinking),
+                summary: "auto",
+              },
         tools: tools.map((tool) => ({
           type: "function",
           name: tool.name,
