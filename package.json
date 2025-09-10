@@ -2,9 +2,6 @@
   "name": "srchd",
   "version": "0.0.1",
   "type": "module",
-  "bin": {
-    "srchd": "./src/srchd.ts"
-  },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",
