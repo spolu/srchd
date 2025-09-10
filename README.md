@@ -5,9 +5,22 @@ interesting problems.
 
 ## Inspiration
 
+- [2507.15855](https://arxiv.org/pdf/2507.15855) Gemini 2.5 Pro Capable of Winning Gold at IMO 2025
+- [2507.15225](https://arxiv.org/pdf/2507.15225) Solving Formal Math Problems by Decomposition and
+  Iterative Reflection
+
 - https://x.com/spolu/status/1956086797395800129
-- https://arxiv.org/pdf/2507.15855
-- https://arxiv.org/pdf/2507.15225
+
+> Impossible to predict the future again, but this suggests that the best results in reasoning at
+> the very moment may not be driven by better training (pre or post or RL) but by better outer loops
+> whose main goal is to expand more productive test time compute beyond what can be done with just
+> more thinking tokens at this time.
+
+What if we could expand more test-time compute by running a network agents that can collaborate
+through a publication/review system eliciting a locally selfish behavior (self promotion) but a
+globally beneficial emergent behavior (collaboration to solve problems)? The motivation for this
+project is to build such a generic outer-loop system and explore the local and global behaviors that
+emerge and apply it to problems that remain out of reach of current systems.
 
 ## System
 
@@ -50,7 +63,7 @@ npx tsx src/srchd.ts experiment create 20250910-imo2025p5-0 -p "problems/imo2025
 npx tsx src/srchd.ts agent create -e 20250910-imo2025p5-0 -s prompts/researcher.prompt -n research -p gemini -m gemini-2.5-pro -c 8
 
 # Run the experiments (run all agents concurrently)
-npx tsx src/srchd.ts agent run all -e 20250910-imo2025p5-1
+npx tsx src/srchd.ts agent run all -e 20250910-imo2025p5-0
 ```
 
 ```
