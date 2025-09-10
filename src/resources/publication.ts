@@ -28,7 +28,9 @@ const REVIEW_SCORES = {
 const MIN_REVIEW_SCORE = 2;
 
 export type Publication = InferSelectModel<typeof publications>;
-export type Review = InferInsertModel<typeof reviews>;
+export type Review = Omit<InferInsertModel<typeof reviews>, "author"> & {
+  author: Agent | null;
+};
 export type Citation = InferInsertModel<typeof citations>;
 
 export class PublicationResource {
@@ -36,7 +38,6 @@ export class PublicationResource {
   private citations: { from: Citation[]; to: Citation[] };
   private reviews: Review[];
   private author: Agent;
-
   experiment: ExperimentResource;
 
   private constructor(data: Publication, experiment: ExperimentResource) {
@@ -49,6 +50,9 @@ export class PublicationResource {
       created: new Date(),
       updated: new Date(),
       experiment: experiment.toJSON().id,
+      provider: "anthropic" as const,
+      model: "claude-sonnet-4-20250514" as const,
+      thinking: "low" as const,
     };
     this.experiment = experiment;
   }
@@ -78,7 +82,18 @@ export class PublicationResource {
 
     this.citations.from = fromCitationsResults;
     this.citations.to = toCitationsResults;
-    this.reviews = reviewsResults;
+
+    this.reviews = await concurrentExecutor(
+      reviewsResults,
+      async (review) => {
+        const reviewAgent = await AgentResource.findById(review.author);
+        return {
+          ...review,
+          author: reviewAgent ? reviewAgent.toJSON() : null,
+        };
+      },
+      { concurrency: 8 }
+    );
 
     if (author) {
       this.author = author.toJSON();
@@ -189,6 +204,24 @@ export class PublicationResource {
           eq(publications.author, author.toJSON().id)
         )
       );
+
+    return await concurrentExecutor(
+      results,
+      async (data) => {
+        return await new PublicationResource(data, experiment).finalize();
+      },
+      { concurrency: 8 }
+    );
+  }
+
+  static async listByExperiment(
+    experiment: ExperimentResource
+  ): Promise<PublicationResource[]> {
+    const results = await db
+      .select()
+      .from(publications)
+      .where(eq(publications.experiment, experiment.toJSON().id))
+      .orderBy(desc(publications.created));
 
     return await concurrentExecutor(
       results,
@@ -413,9 +446,12 @@ export class PublicationResource {
       )
       .returning();
 
-    this.reviews = created;
+    this.reviews = created.map((r) => ({
+      ...r,
+      author: reviewers.find((rev) => rev.toJSON().id === r.author)!.toJSON(),
+    }));
 
-    return new Ok(created);
+    return new Ok(this.reviews);
   }
 
   async submitReview(
@@ -426,7 +462,7 @@ export class PublicationResource {
     >
   ): Promise<Result<Review, SrchdError>> {
     const idx = this.reviews.findIndex(
-      (r) => r.author === reviewer.toJSON().id
+      (r) => r.author?.id === reviewer.toJSON().id
     );
     if (idx === -1) {
       return new Err(
@@ -459,8 +495,9 @@ export class PublicationResource {
       );
     }
 
-    this.reviews[idx] = updated;
-    return new Ok(updated);
+    this.reviews[idx] = { ...updated, author: reviewer.toJSON() };
+
+    return new Ok(this.reviews[idx]);
   }
 
   toJSON() {

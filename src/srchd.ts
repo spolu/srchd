@@ -12,6 +12,8 @@ import { isProvider, isThinkingConfig } from "./models";
 import { isAnthropicModel } from "./models/anthropic";
 import { isOpenAIModel } from "./models/openai";
 import { isGeminiModel } from "./models/gemini";
+import { serve } from "@hono/node-server";
+import app from "./server";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(
@@ -413,6 +415,32 @@ agentCmd
     if (replay.isErr()) {
       return exitWithError(replay);
     }
+  });
+
+// Serve command
+program
+  .command("serve")
+  .description("Start the web UI server")
+  .option("-p, --port <port>", "Port to serve on", "1337")
+  .action(async (options) => {
+    const port = parseInt(options.port);
+    if (isNaN(port) || port < 1 || port > 65535) {
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "invalid_parameters_error",
+            "Port must be a valid number between 1 and 65535"
+          )
+        )
+      );
+    }
+
+    console.log(`Starting server on http://localhost:${port}`);
+
+    serve({
+      fetch: app.fetch,
+      port,
+    });
   });
 
 program.parse();

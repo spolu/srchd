@@ -2,17 +2,37 @@ import { db } from "../db";
 import { solutions } from "../db/schema";
 import { eq, InferSelectModel, InferInsertModel, and, desc } from "drizzle-orm";
 import { ExperimentResource } from "./experiment";
-import { AgentResource } from "./agent";
+import { Agent, AgentResource } from "./agent";
+import { concurrentExecutor } from "../lib/async";
 
 type Solution = InferSelectModel<typeof solutions>;
 
 export class SolutionResource {
   private data: Solution;
+  private agent: Agent;
   experiment: ExperimentResource;
 
   private constructor(data: Solution, experiment: ExperimentResource) {
     this.data = data;
+    this.agent = {
+      id: 0,
+      name: "",
+      created: new Date(),
+      updated: new Date(),
+      experiment: experiment.toJSON().id,
+      provider: "anthropic" as const,
+      model: "claude-sonnet-4-20250514" as const,
+      thinking: "low" as const,
+    };
     this.experiment = experiment;
+  }
+
+  private async finalize(): Promise<SolutionResource> {
+    const agent = await AgentResource.findById(this.data.agent);
+    if (agent) {
+      this.agent = agent.toJSON();
+    }
+    return this;
   }
 
   static async findLatestByAgent(
@@ -35,7 +55,7 @@ export class SolutionResource {
       return null;
     }
 
-    return new SolutionResource(result, experiment);
+    return await new SolutionResource(result, experiment).finalize();
   }
 
   static async listByAgent(
@@ -53,7 +73,11 @@ export class SolutionResource {
       )
       .orderBy(desc(solutions.created));
 
-    return results.map((sol) => new SolutionResource(sol, experiment));
+    return await concurrentExecutor(
+      results,
+      async (sol) => await new SolutionResource(sol, experiment).finalize(),
+      { concurrency: 8 }
+    );
   }
 
   static async listByExperiment(
@@ -65,7 +89,11 @@ export class SolutionResource {
       .where(and(eq(solutions.experiment, experiment.toJSON().id)))
       .orderBy(desc(solutions.created));
 
-    return results.map((sol) => new SolutionResource(sol, experiment));
+    return await concurrentExecutor(
+      results,
+      async (sol) => await new SolutionResource(sol, experiment).finalize(),
+      { concurrency: 8 }
+    );
   }
 
   static async create(
@@ -84,10 +112,13 @@ export class SolutionResource {
         agent: agent.toJSON().id,
       })
       .returning();
-    return new SolutionResource(created, experiment);
+    return await new SolutionResource(created, experiment).finalize();
   }
 
-  toJSON(): Solution {
-    return this.data;
+  toJSON() {
+    return {
+      ...this.data,
+      agent: this.agent,
+    };
   }
 }

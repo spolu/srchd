@@ -15,11 +15,13 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.57.0",
     "@google/genai": "^1.13.0",
+    "@hono/node-server": "^1.19.1",
     "@modelcontextprotocol/sdk": "^1.17.1",
     "@types/json-schema": "^7.0.15",
     "better-sqlite3": "^12.2.0",
     "commander": "^14.0.0",
     "drizzle-orm": "^0.44.3",
+    "hono": "^4.9.6",
     "openai": "^5.16.0",
     "tiktoken": "^1.0.22"
   }
