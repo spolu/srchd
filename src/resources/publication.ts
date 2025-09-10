@@ -83,15 +83,16 @@ export class PublicationResource {
     this.citations.from = fromCitationsResults;
     this.citations.to = toCitationsResults;
 
-    // Populate reviews with full agent information
-    this.reviews = await Promise.all(
-      reviewsResults.map(async (review) => {
+    this.reviews = await concurrentExecutor(
+      reviewsResults,
+      async (review) => {
         const reviewAgent = await AgentResource.findById(review.author);
         return {
           ...review,
           author: reviewAgent ? reviewAgent.toJSON() : null,
         };
-      })
+      },
+      { concurrency: 8 }
     );
 
     if (author) {

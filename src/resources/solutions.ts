@@ -3,6 +3,7 @@ import { solutions } from "../db/schema";
 import { eq, InferSelectModel, InferInsertModel, and, desc } from "drizzle-orm";
 import { ExperimentResource } from "./experiment";
 import { Agent, AgentResource } from "./agent";
+import { concurrentExecutor } from "../lib/async";
 
 type Solution = InferSelectModel<typeof solutions>;
 
@@ -72,8 +73,10 @@ export class SolutionResource {
       )
       .orderBy(desc(solutions.created));
 
-    return await Promise.all(
-      results.map(async (sol) => await new SolutionResource(sol, experiment).finalize())
+    return await concurrentExecutor(
+      results,
+      async (sol) => await new SolutionResource(sol, experiment).finalize(),
+      { concurrency: 8 }
     );
   }
 
@@ -86,8 +89,10 @@ export class SolutionResource {
       .where(and(eq(solutions.experiment, experiment.toJSON().id)))
       .orderBy(desc(solutions.created));
 
-    return await Promise.all(
-      results.map(async (sol) => await new SolutionResource(sol, experiment).finalize())
+    return await concurrentExecutor(
+      results,
+      async (sol) => await new SolutionResource(sol, experiment).finalize(),
+      { concurrency: 8 }
     );
   }
 
