@@ -8,7 +8,7 @@ export function isProvider(str: string): str is provider {
   return ["gemini", "anthropic", "openai"].includes(str);
 }
 
-export const DEFAULT_MAX_TOKENS = 2048;
+export const DEFAULT_MAX_TOKENS = 4096;
 
 export type ProviderData = Partial<Record<provider, any>>;
 

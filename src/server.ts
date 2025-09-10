@@ -113,6 +113,56 @@ const baseTemplate = (title: string, content: string, breadcrumb?: string) => `
     .reason-badge.previous_improved { background: #f3e5f5; color: #7b1fa2; }
     .reason-badge.new_approach { background: #e8f5e8; color: #2e7d32; }
     .count { color: #666; font-weight: normal; }
+    .evolution-carousel {
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      background: #fafafa;
+      margin-bottom: 15px;
+    }
+    .evolution-header {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      justify-content: space-between;
+      align-items: center;
+      background: #f0f0f0;
+    }
+    .evolution-header a {
+      color: #0066cc;
+      text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .evolution-content {
+      padding: 15px;
+    }
+    .evolution-meta {
+      font-size: 0.9em;
+      color: #666;
+      margin-bottom: 10px;
+    }
+    .diff-view {
+      margin-top: 15px;
+    }
+    .diff-header {
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #333;
+    }
+    .diff-content {
+      white-space: pre-wrap;
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 3px;
+      border: 1px solid #ddd;
+    }
+    .diff-added {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .diff-removed {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
   </style>
 </head>
 <body>
@@ -260,6 +310,106 @@ app.get("/experiments/:id/agents/:agentId", async (c) => {
   const agentData = agent.toJSON();
   const expData = experiment.toJSON();
 
+  const evolutionsCarousel =
+    agentData.evolutions.length > 0
+      ? `
+
+    <h2>Evolutions <span class="count">(${
+      agentData.evolutions.length
+    })</span></h2>
+    <div class="evolution-carousel">
+      <div class="evolution-header">
+        <a onclick="previousEvolution()" id="prevBtn">← Prev</a>
+        <span id="evolutionCounter">1 / ${agentData.evolutions.length}</span>
+        <a onclick="nextEvolution()" id="nextBtn">Next →</a>
+      </div>
+      <div class="evolution-content">
+        <div id="evolutionDisplay">
+          <div class="evolution-meta" id="evolutionMeta">
+            Evolution #${
+              agentData.evolutions.length
+            } (Latest) - Created: ${agentData.evolutions[0].created.toLocaleString()}
+          </div>
+          <div class="diff-content" id="diffContent"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      let currentEvolutionIndex = 0;
+      const evolutions = ${JSON.stringify(agentData.evolutions)};
+
+      function updateEvolutionDisplay() {
+        const evolution = evolutions[currentEvolutionIndex];
+        const evolutionNumber = evolutions.length - currentEvolutionIndex;
+
+        document.getElementById('evolutionMeta').textContent =
+          \`Evolution #\${evolutionNumber}\ - Created: \${new Date(evolution.created).toLocaleString()}\`;
+        document.getElementById('evolutionCounter').textContent = \`\${currentEvolutionIndex + 1} / \${evolutions.length}\`;
+
+        document.getElementById('prevBtn').disabled = currentEvolutionIndex === 0;
+        document.getElementById('nextBtn').disabled = currentEvolutionIndex === evolutions.length - 1;
+
+        updateDiff();
+      }
+
+      function previousEvolution() {
+        if (currentEvolutionIndex > 0) {
+          currentEvolutionIndex--;
+          updateEvolutionDisplay();
+        }
+      }
+
+      function nextEvolution() {
+        if (currentEvolutionIndex < evolutions.length - 1) {
+          currentEvolutionIndex++;
+          updateEvolutionDisplay();
+        }
+      }
+
+      function simpleDiff(oldText, newText) {
+        const oldLines = oldText.split('\\n');
+        const newLines = newText.split('\\n');
+        const result = [];
+
+        let i = 0, j = 0;
+        while (i < oldLines.length || j < newLines.length) {
+          if (i >= oldLines.length) {
+            result.push(\`<span class="diff-added">+ \${newLines[j]}</span>\`);
+            j++;
+          } else if (j >= newLines.length) {
+            result.push(\`<span class="diff-removed">- \${oldLines[i]}</span>\`);
+            i++;
+          } else if (oldLines[i] === newLines[j]) {
+            // result.push(\`  \${oldLines[i]}\`);
+            i++; j++;
+          } else {
+            result.push(\`<span class="diff-removed">- \${oldLines[i]}</span>\`);
+            result.push(\`<span class="diff-added">+ \${newLines[j]}</span>\`);
+            i++; j++;
+          }
+        }
+
+        return result.join('\\n');
+      }
+
+      function updateDiff() {
+        if (evolutions.length < 2) {
+          document.getElementById('diffContent').textContent = 'No base evolution to compare with.';
+          return;
+        }
+
+        const baseEvolution = evolutions[evolutions.length - 1];
+        const currentEvolution = evolutions[currentEvolutionIndex];
+        const diff = simpleDiff(baseEvolution.system, currentEvolution.system);
+
+        document.getElementById('diffContent').innerHTML = diff;
+      }
+
+      updateEvolutionDisplay();
+    </script>
+  `
+      : "";
+
   const content = `
     ${experimentNav(id, "agents")}
     <h1>${agentData.name}</h1>
@@ -268,6 +418,8 @@ app.get("/experiments/:id/agents/:agentId", async (c) => {
       <p><strong>Model:</strong> ${agentData.model}</p>
       <div class="meta">Created: ${agentData.created.toLocaleString()}</div>
     </div>
+
+    ${evolutionsCarousel}
 
     <h2>Publications <span class="count">(${
       agentPublications.length

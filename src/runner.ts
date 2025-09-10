@@ -29,7 +29,7 @@ import { createGoalSolutionServer } from "./tools/goal_solution";
 import { GeminiModel, GeminiModels } from "./models/gemini";
 import { OpenAIModel, OpenAIModels } from "./models/openai";
 
-const MAX_TOKENS_COUNT = 128000;
+const MAX_TOKENS_COUNT = 163840;
 
 export class Runner {
   private experiment: ExperimentResource;
