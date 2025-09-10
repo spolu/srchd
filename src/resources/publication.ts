@@ -34,7 +34,7 @@ export type Citation = InferInsertModel<typeof citations>;
 export class PublicationResource {
   private data: Publication;
   private citations: { from: Citation[]; to: Citation[] };
-  private reviews: Review[];
+  private reviews: (Omit<Review, "author"> & { author: Agent })[];
   private author: Agent;
 
   experiment: ExperimentResource;
@@ -49,6 +49,9 @@ export class PublicationResource {
       created: new Date(),
       updated: new Date(),
       experiment: experiment.toJSON().id,
+      provider: "anthropic" as const,
+      model: "claude-sonnet-4-20250514" as const,
+      thinking: "low" as const,
     };
     this.experiment = experiment;
   }
@@ -78,7 +81,18 @@ export class PublicationResource {
 
     this.citations.from = fromCitationsResults;
     this.citations.to = toCitationsResults;
-    this.reviews = reviewsResults;
+
+    // Populate reviews with full agent information
+    const reviewsWithAgents = await Promise.all(
+      reviewsResults.map(async (review) => {
+        const reviewAgent = await AgentResource.findById(review.author);
+        return {
+          ...review,
+          author: reviewAgent ? reviewAgent.toJSON() : null,
+        };
+      })
+    );
+    this.reviews = reviewsWithAgents as any;
 
     if (author) {
       this.author = author.toJSON();
@@ -189,6 +203,24 @@ export class PublicationResource {
           eq(publications.author, author.toJSON().id)
         )
       );
+
+    return await concurrentExecutor(
+      results,
+      async (data) => {
+        return await new PublicationResource(data, experiment).finalize();
+      },
+      { concurrency: 8 }
+    );
+  }
+
+  static async listByExperiment(
+    experiment: ExperimentResource
+  ): Promise<PublicationResource[]> {
+    const results = await db
+      .select()
+      .from(publications)
+      .where(eq(publications.experiment, experiment.toJSON().id))
+      .orderBy(desc(publications.created));
 
     return await concurrentExecutor(
       results,
@@ -413,7 +445,10 @@ export class PublicationResource {
       )
       .returning();
 
-    this.reviews = created;
+    this.reviews = created.map((r) => ({
+      ...r,
+      author: reviewers.find((rev) => rev.toJSON().id === r.author)!.toJSON(),
+    }));
 
     return new Ok(created);
   }
@@ -426,7 +461,7 @@ export class PublicationResource {
     >
   ): Promise<Result<Review, SrchdError>> {
     const idx = this.reviews.findIndex(
-      (r) => r.author === reviewer.toJSON().id
+      (r) => r.author.id === reviewer.toJSON().id
     );
     if (idx === -1) {
       return new Err(
@@ -459,7 +494,7 @@ export class PublicationResource {
       );
     }
 
-    this.reviews[idx] = updated;
+    this.reviews[idx] = { ...updated, author: reviewer.toJSON() };
     return new Ok(updated);
   }
 
