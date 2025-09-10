@@ -19,13 +19,14 @@ import { newID4, removeNulls } from "../lib/utils";
 import { concurrentExecutor } from "../lib/async";
 import { assertNever } from "../lib/assert";
 
-const REVIEW_SCORES = {
-  STRONG_ACCEPT: 2,
-  ACCEPT: 1,
-  REJECT: -1,
-  STRONG_REJECT: -2,
-};
-const MIN_REVIEW_SCORE = 2;
+// const REVIEW_SCORES = {
+//   STRONG_ACCEPT: 2,
+//   ACCEPT: 1,
+//   REJECT: -1,
+//   STRONG_REJECT: -2,
+// };
+export const REVIEWER_COUNT = 4;
+// const MIN_REVIEW_SCORE = 2;
 
 export type Publication = InferSelectModel<typeof publications>;
 export type Review = Omit<InferInsertModel<typeof reviews>, "author"> & {
@@ -336,13 +337,19 @@ export class PublicationResource {
       return "SUBMITTED";
     }
 
-    const score = grades.reduce((acc, g) => acc + REVIEW_SCORES[g], 0);
-
-    if (score >= MIN_REVIEW_SCORE) {
-      await this.publish();
-    } else {
+    // publish only if we only have accept or strong_accept
+    if (grades.some((g) => g === "REJECT" || g === "STRONG_REJECT")) {
       await this.reject();
+    } else {
+      await this.publish();
     }
+
+    // const score = grades.reduce((acc, g) => acc + REVIEW_SCORES[g], 0);
+    // if (score >= MIN_REVIEW_SCORE) {
+    //   await this.publish();
+    // } else {
+    //   await this.reject();
+    // }
 
     return this.data.status;
   }

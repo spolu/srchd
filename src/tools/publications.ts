@@ -2,11 +2,13 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AgentResource } from "../resources/agent";
 import { errorToCallToolResult } from "../lib/mcp";
-import { PublicationResource, Review } from "../resources/publication";
+import {
+  PublicationResource,
+  Review,
+  REVIEWER_COUNT,
+} from "../resources/publication";
 import { ExperimentResource } from "../resources/experiment";
 import { SrchdError } from "../lib/error";
-
-export const REVIEWER_COUNT = 3;
 
 const SERVER_NAME = "publications";
 const SERVER_VERSION = "0.1.0";
