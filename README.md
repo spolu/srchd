@@ -32,6 +32,10 @@ Both were ~achieved and the next steps is to expand the set of tools available t
 particular vulnerabiilty discovery as motivated by this [blog
 post](https://sean.heelan.io/2025/05/22/how-i-used-o3-to-find-cve-2025-37899-a-remote-zeroday-vulnerability-in-the-linux-kernels-smb-implementation/).
 
+<img width="1930" height="2010" alt="Screenshot from 2025-09-10 21-11-48" src="https://github.com/user-attachments/assets/e15909e9-5308-4c17-a4e3-a63401f7d1a6" />
+<img width="1930" height="2010" alt="Screenshot from 2025-09-10 21-12-34" src="https://github.com/user-attachments/assets/9cea5995-7e95-4f1f-95cd-f8ec888f5604" />
+
+
 ## TODO & Next Steps
 
-- https://github.com/spolu/srchd/blob/main/TODO
+- [TODO](https://github.com/spolu/srchd/blob/main/TODO)
