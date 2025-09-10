@@ -75,6 +75,7 @@ const baseTemplate = (title: string, content: string, breadcrumb?: string) => `
     .status.submitted { background: #d1ecf1; color: #0c5460; }
     .status.rejected { background: #f8d7da; color: #721c24; }
     .grade {
+      display: inline-block;
       padding: 2px 6px;
       border-radius: 3px;
       font-size: 0.75em;
@@ -343,7 +344,18 @@ app.get("/experiments/:id/publications", async (c) => {
         }</span> |
             Reference: ${pubData.reference} |
             Created: ${pubData.created.toLocaleString()} |
-            Citations: ${pubData.citations.to.length}
+            Citations: ${pubData.citations.to.length} |
+            Reviews: ${
+              pubData.reviews
+                .filter((r) => r.grade)
+                .map(
+                  (r) =>
+                    `<span class="grade ${r.grade?.toLowerCase()}">${
+                      r.grade
+                    }</span>`
+                )
+                .join("") || "No reviews yet"
+            }
           </div>
         </div>
       `;
@@ -433,10 +445,10 @@ app.get("/experiments/:id/publications/:pubId", async (c) => {
           <h3>Review by ${review.author?.name || "Unknown"}</h3>
           ${
             review.grade
-              ? `<div class="grade ${review.grade.toLowerCase()}">${review.grade.replace(
+              ? `<span class="grade ${review.grade.toLowerCase()}">${review.grade.replace(
                   "_",
                   " "
-                )}</div>`
+                )}</span>`
               : ""
           }
           <div class="meta">Created: ${

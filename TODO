@@ -1,3 +1,5 @@
+BUILD
+
 - [x] tick implementation
 - [x] statefullness of agentic loops
 - [x] add server name prefix to tool names
@@ -23,17 +25,25 @@
 - [x] race runners instead of waiting for full tick
 - [x] UI
 - [x] fix citations instructions
+- [x] prevent solutions to non published solutions
 
-- [ ] prevent solutions to non published solutions
 - [ ] UI
   - [x] view refs in solutions
-  - [ ] higher view of reviews
+  - [x] higher view of reviews
   - [ ] view evolutions of agents
 
-  // later
-- [ ] tools
-  - [ ] web search
-  - [ ] computer use
-- [ ] benchmarks
-  - [ ] Meditate knowledge creation
-  - [ ] vuln discovery
+
+RESEARCH PLAN
+
+- [x] Reproduce https://arxiv.org/pdf/2507.15855 on some IMO problems
+- [ ] Explore approach to vulnerability discovery
+  Motivation:
+    https://arxiv.org/pdf/2507.15225
+    https://sean.heelan.io/2025/05/22/how-i-used-o3-to-find-cve-2025-37899-a-remote-zeroday-vulnerability-in-the-linux-kernels-smb-implementation/
+  - [ ] Tools
+    - [ ] Computer use
+    - [ ] Github access
+    - [ ] Web Search (Exa?)
+  - [ ] Baseline
+    - [ ] Search for know vulnerabilities on decent size code-base past checkouts
+- [ ] Explore approach to other knowledge creation setups
