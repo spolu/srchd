@@ -20,9 +20,15 @@
 - [x] benchmarks
   - [x] ARC-AGI 2
 - [x] add support for OpenAI models
+- [x] race runners instead of waiting for full tick
+- [x] UI
+- [x] fix citations instructions
 
-- [ ] race runners instead of waiting for full tick
+- [ ] prevent solutions to non published solutions
 - [ ] UI
+  - [x] view refs in solutions
+  - [ ] higher view of reviews
+  - [ ] view evolutions of agents
 
   // later
 - [ ] tools

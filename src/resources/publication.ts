@@ -71,7 +71,10 @@ export class PublicationResource {
       .select()
       .from(reviews)
       .where(eq(reviews.publication, this.data.id));
-    const authorQuery = AgentResource.findById(this.data.author);
+    const authorQuery = AgentResource.findById(
+      this.experiment,
+      this.data.author
+    );
 
     const [fromCitationsResults, toCitationsResults, reviewsResults, author] =
       await Promise.all([
@@ -87,7 +90,10 @@ export class PublicationResource {
     this.reviews = await concurrentExecutor(
       reviewsResults,
       async (review) => {
-        const reviewAgent = await AgentResource.findById(review.author);
+        const reviewAgent = await AgentResource.findById(
+          this.experiment,
+          review.author
+        );
         return {
           ...review,
           author: reviewAgent ? reviewAgent.toJSON() : null,
@@ -100,6 +106,21 @@ export class PublicationResource {
       this.author = author.toJSON();
     }
     return this;
+  }
+
+  static async findById(
+    experiment: ExperimentResource,
+    id: number
+  ): Promise<PublicationResource | null> {
+    const [result] = await db
+      .select()
+      .from(publications)
+      .where(eq(publications.id, id))
+      .limit(1);
+
+    if (!result) return null;
+
+    return await new PublicationResource(result, experiment).finalize();
   }
 
   static async listPublishedByExperiment(

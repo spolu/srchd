@@ -51,7 +51,10 @@ export class AgentResource {
     return await new AgentResource(result, experiment).finalize();
   }
 
-  static async findById(id: number): Promise<AgentResource | null> {
+  static async findById(
+    experiment: ExperimentResource,
+    id: number
+  ): Promise<AgentResource | null> {
     const [result] = await db
       .select()
       .from(agents)
@@ -59,9 +62,6 @@ export class AgentResource {
       .limit(1);
 
     if (!result) return null;
-
-    const experiment = await ExperimentResource.findById(result.experiment);
-    if (!experiment) return null;
 
     return await new AgentResource(result, experiment).finalize();
   }

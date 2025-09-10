@@ -4,12 +4,14 @@ import { eq, InferSelectModel, InferInsertModel, and, desc } from "drizzle-orm";
 import { ExperimentResource } from "./experiment";
 import { Agent, AgentResource } from "./agent";
 import { concurrentExecutor } from "../lib/async";
+import { PublicationResource } from "./publication";
 
 type Solution = InferSelectModel<typeof solutions>;
 
 export class SolutionResource {
   private data: Solution;
   private agent: Agent;
+  private publication: PublicationResource | null = null;
   experiment: ExperimentResource;
 
   private constructor(data: Solution, experiment: ExperimentResource) {
@@ -28,9 +30,24 @@ export class SolutionResource {
   }
 
   private async finalize(): Promise<SolutionResource> {
-    const agent = await AgentResource.findById(this.data.agent);
+    const [agent, publication] = await Promise.all([
+      AgentResource.findById(this.experiment, this.data.agent),
+      (async () => {
+        if (this.data.publication) {
+          return await PublicationResource.findById(
+            this.experiment,
+            this.data.publication
+          );
+        }
+        return null;
+      })(),
+    ]);
+
     if (agent) {
       this.agent = agent.toJSON();
+    }
+    if (publication) {
+      this.publication = publication;
     }
     return this;
   }
@@ -119,6 +136,7 @@ export class SolutionResource {
     return {
       ...this.data,
       agent: this.agent,
+      publication: this.publication ? this.publication.toJSON() : null,
     };
   }
 }

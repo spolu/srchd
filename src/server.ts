@@ -342,7 +342,8 @@ app.get("/experiments/:id/publications", async (c) => {
           pubData.status
         }</span> |
             Reference: ${pubData.reference} |
-            Created: ${pubData.created.toLocaleString()}
+            Created: ${pubData.created.toLocaleString()} |
+            Citations: ${pubData.citations.to.length}
           </div>
         </div>
       `;
@@ -487,7 +488,14 @@ app.get("/experiments/:id/solutions", async (c) => {
           <h3>Solution by ${solData.agent.name}</h3>
           <div><span class="reason-badge ${
             solData.reason
-          }">${solData.reason.replace("_", " ")}</span></div>
+          }">${solData.reason.replace("_", " ")}</span>
+          ${
+            solData.publication
+              ? `
+            <a href="/experiments/${id}/publications/${solData.publication.id}">${solData.publication.reference}</a>`
+              : ""
+          }
+          </div>
           <p>${solData.rationale}</p>
           <div class="meta">Created: ${solData.created.toLocaleString()}</div>
         </div>
@@ -501,4 +509,3 @@ app.get("/experiments/:id/solutions", async (c) => {
 });
 
 export default app;
-

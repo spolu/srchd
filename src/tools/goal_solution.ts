@@ -52,6 +52,14 @@ export function createGoalSolutionServer(
           new SrchdError("not_found_error", "Publication not found")
         );
       }
+      if (publication && publication.toJSON().status !== "PUBLISHED") {
+        return errorToCallToolResult(
+          new SrchdError(
+            "invalid_parameters_error",
+            "Publication is not published"
+          )
+        );
+      }
 
       await SolutionResource.create(experiment, agent, {
         reason,
