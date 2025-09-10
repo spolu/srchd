@@ -28,15 +28,16 @@ const REVIEW_SCORES = {
 const MIN_REVIEW_SCORE = 2;
 
 export type Publication = InferSelectModel<typeof publications>;
-export type Review = InferInsertModel<typeof reviews>;
+export type Review = Omit<InferInsertModel<typeof reviews>, "author"> & {
+  author: Agent | null;
+};
 export type Citation = InferInsertModel<typeof citations>;
 
 export class PublicationResource {
   private data: Publication;
   private citations: { from: Citation[]; to: Citation[] };
-  private reviews: (Omit<Review, "author"> & { author: Agent })[];
+  private reviews: Review[];
   private author: Agent;
-
   experiment: ExperimentResource;
 
   private constructor(data: Publication, experiment: ExperimentResource) {
@@ -83,7 +84,7 @@ export class PublicationResource {
     this.citations.to = toCitationsResults;
 
     // Populate reviews with full agent information
-    const reviewsWithAgents = await Promise.all(
+    this.reviews = await Promise.all(
       reviewsResults.map(async (review) => {
         const reviewAgent = await AgentResource.findById(review.author);
         return {
@@ -92,7 +93,6 @@ export class PublicationResource {
         };
       })
     );
-    this.reviews = reviewsWithAgents as any;
 
     if (author) {
       this.author = author.toJSON();
@@ -450,7 +450,7 @@ export class PublicationResource {
       author: reviewers.find((rev) => rev.toJSON().id === r.author)!.toJSON(),
     }));
 
-    return new Ok(created);
+    return new Ok(this.reviews);
   }
 
   async submitReview(
@@ -461,7 +461,7 @@ export class PublicationResource {
     >
   ): Promise<Result<Review, SrchdError>> {
     const idx = this.reviews.findIndex(
-      (r) => r.author.id === reviewer.toJSON().id
+      (r) => r.author?.id === reviewer.toJSON().id
     );
     if (idx === -1) {
       return new Err(
@@ -495,7 +495,8 @@ export class PublicationResource {
     }
 
     this.reviews[idx] = { ...updated, author: reviewer.toJSON() };
-    return new Ok(updated);
+
+    return new Ok(this.reviews[idx]);
   }
 
   toJSON() {
