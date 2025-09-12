@@ -768,7 +768,7 @@ app.get("/experiments/:id/publications/:pubId", async (c) => {
         .map(
           (review) => `
         <div class="card">
-          <h3>Review by ${review.author?.name || "Unknown"}</h3>
+          <h3>Review by ${review.author.name || "Unknown"}</h3>
           ${
             review.grade
               ? `<span class="grade ${review.grade.toLowerCase()}">${review.grade.replace(

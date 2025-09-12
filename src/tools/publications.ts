@@ -15,6 +15,7 @@ const SERVER_VERSION = "0.1.0";
 
 export const reviewHeader = (review: Review) => {
   return `\
+reviewer=${review.author.name}
 grade=${review.grade || "PENDING"}
 submitted=${review.created?.toISOString() || ""}`;
 };
@@ -78,17 +79,27 @@ export function createPublicationsServer(
     "list_publications",
     "List publications available in the system.",
     {
-      order: z.enum(["latest", "citations"]).describe(
-        `\
+      order: z
+        .enum(["latest", "citations"])
+        .optional()
+        .describe(
+          `\
 Ordering to use:
 \`latest\` lists the most recent publications.
-\`citations\` lists the most cited publications.`
-      ),
+\`citations\` lists the most cited publications.
+Defaults to \`latest\`.`
+        ),
       status: z
         .enum(["PUBLISHED", "SUBMITTED", "REJECTED"])
         .optional()
         .describe(
           `The status of the publications to list. Defaults to \`PUBLISHED\``
+        ),
+      withAbstract: z
+        .boolean()
+        .optional()
+        .describe(
+          "Whether to include the abstract in the listing. Defaults to true."
         ),
       limit: z
         .number()
@@ -99,7 +110,13 @@ Ordering to use:
         .optional()
         .describe("Offset for pagination. Defaults to 0."),
     },
-    async ({ order, status = "PUBLISHED", limit = 10, offset = 0 }) => {
+    async ({
+      order = "latest",
+      status = "PUBLISHED",
+      withAbstract = true,
+      limit = 10,
+      offset = 0,
+    }) => {
       const publications = await PublicationResource.listPublishedByExperiment(
         experiment,
         {
@@ -116,35 +133,7 @@ Ordering to use:
           {
             type: "text",
             text: renderListOfPublications(publications, {
-              withAbstract: false,
-            }),
-          },
-        ],
-      };
-    }
-  );
-
-  server.tool(
-    "get_publication_abstract",
-    "Retrieve the abstracts for a list of publications",
-    {
-      references: z
-        .array(z.string())
-        .describe("List of publication references"),
-    },
-    async ({ references }) => {
-      const publications = await PublicationResource.findByReferences(
-        experiment,
-        references
-      );
-
-      return {
-        isError: false,
-        content: [
-          {
-            type: "text",
-            text: renderListOfPublications(publications, {
-              withAbstract: true,
+              withAbstract,
             }),
           },
         ],
@@ -174,48 +163,23 @@ Ordering to use:
         content: [
           {
             type: "text",
-            text: `\
+            text:
+              `\
 ${publicationHeader(publication, { withAbstract: true })}
 
-${publication.toJSON().content}`,
-          },
-        ],
-      };
-    }
-  );
-
-  server.tool(
-    "get_publication_reviews",
-    "Retrieve a specific publication reviews.",
-    {
-      reference: z.string().describe("Reference of the publication."),
-    },
-    async ({ reference }) => {
-      const publication = await PublicationResource.findByReference(
-        experiment,
-        reference
-      );
-      if (!publication) {
-        return errorToCallToolResult(
-          new SrchdError("not_found_error", "Publication not found")
-        );
-      }
-
-      return {
-        isError: false,
-        content: [
-          {
-            type: "text",
-            text: `\
+${publication.toJSON().content}` +
+              "\n\n" +
+              (publication.toJSON().status === "PUBLISHED"
+                ? `\
 ${publication
   .toJSON()
   .reviews.map((r) => {
     return `\
-REVIEW:
 ${reviewHeader(r)}
 ${r.content}`;
   })
-  .join("\n\n")}`,
+  .join("\n\n")}`
+                : "(reviews are hidden until publication/rejection)"),
           },
         ],
       };
@@ -294,7 +258,7 @@ ${r.content}`;
   );
 
   server.tool(
-    "list_received_review_requests",
+    "list_review_requests",
     "List pending review requests received by the caller.",
     {},
     async () => {

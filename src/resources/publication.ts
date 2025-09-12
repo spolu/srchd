@@ -18,6 +18,7 @@ import { normalizeError, SrchdError } from "../lib/error";
 import { newID4, removeNulls } from "../lib/utils";
 import { concurrentExecutor } from "../lib/async";
 import { assertNever } from "../lib/assert";
+import assert from "assert";
 
 // const REVIEW_SCORES = {
 //   STRONG_ACCEPT: 2,
@@ -30,7 +31,7 @@ export const REVIEWER_COUNT = 4;
 
 export type Publication = InferSelectModel<typeof publications>;
 export type Review = Omit<InferInsertModel<typeof reviews>, "author"> & {
-  author: Agent | null;
+  author: Agent;
 };
 export type Citation = InferInsertModel<typeof citations>;
 
@@ -94,9 +95,10 @@ export class PublicationResource {
           this.experiment,
           review.author
         );
+        assert(reviewAgent);
         return {
           ...review,
-          author: reviewAgent ? reviewAgent.toJSON() : null,
+          author: reviewAgent.toJSON(),
         };
       },
       { concurrency: 8 }
