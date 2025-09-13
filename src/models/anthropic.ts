@@ -123,6 +123,23 @@ export class AnthropicModel extends BaseModel {
       ),
     }));
 
+    for (var i = anthropicMessages.length - 1; i >= 0; i--) {
+      if (anthropicMessages[i].role === "user") {
+        let found = false;
+        for (var j = anthropicMessages[i].content.length - 1; j >= 0; j--) {
+          const c = anthropicMessages[i].content[j];
+          if (typeof c !== "string" && c.type === "text") {
+            c.cache_control = { type: "ephemeral" };
+            found = true;
+            break;
+          }
+        }
+        if (found) {
+          break;
+        }
+      }
+    }
+
     return anthropicMessages;
   }
 
@@ -153,7 +170,15 @@ export class AnthropicModel extends BaseModel {
             }
           })(),
         messages: this.messages(messages),
-        system: prompt,
+        system: [
+          {
+            type: "text",
+            text: prompt,
+            cache_control: {
+              type: "ephemeral",
+            },
+          },
+        ],
         thinking: (() => {
           switch (this.config.thinking) {
             case undefined:
@@ -183,6 +208,8 @@ export class AnthropicModel extends BaseModel {
           type: toolChoice,
         },
       });
+
+      console.log(message.usage);
 
       return new Ok({
         role: message.role === "assistant" ? "agent" : "user",
