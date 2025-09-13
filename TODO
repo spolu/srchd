@@ -26,11 +26,11 @@ BUILD
 - [x] UI
 - [x] fix citations instructions
 - [x] prevent solutions to non published solutions
-
-- [ ] UI
+- [x] UI
   - [x] view refs in solutions
   - [x] higher view of reviews
-  - [ ] view evolutions of agents
+  - [x] view evolutions of agents
+- [ ] implement caching across platforms
 
 
 RESEARCH PLAN
