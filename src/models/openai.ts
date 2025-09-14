@@ -132,13 +132,13 @@ export class OpenAIModel extends BaseModel {
   convertThinking(thinking: "high" | "low" | "none" | undefined) {
     switch (thinking) {
       case "high":
-        return "high";
+        return "medium";
       case "low":
         return "low";
       case "none":
         return "minimal";
       case undefined:
-        return "medium";
+        return "low";
       default:
         assertNever(thinking);
     }
@@ -160,7 +160,7 @@ export class OpenAIModel extends BaseModel {
       // console.log(JSON.stringify(tools, null, 2));
       // console.log("----------------------------------------------");
 
-      const response = await this.client.responses.create({
+      let response = await this.client.responses.create({
         model: this.model,
         instructions: prompt,
         input,
@@ -181,7 +181,34 @@ export class OpenAIModel extends BaseModel {
           parameters: tool.inputSchema as any,
           strict: false,
         })),
+        // background: true,
       });
+
+      // while (
+      //   response.status === "queued" ||
+      //   response.status === "in_progress"
+      // ) {
+      //   await new Promise((resolve) => setTimeout(resolve, 2000)); // wait 2 seconds
+      //   response = await this.client.responses.retrieve(response.id);
+      //   console.log(
+      //     "Current status: " + response.status + " [" + response.id + "]"
+      //   );
+      //   console.log(response);
+      // }
+
+      // if (response.status === "failed") {
+      //   return new Err(
+      //     new SrchdError(
+      //       "model_error",
+      //       "Model response failed",
+      //       response.error
+      //         ? normalizeError(
+      //             `[${response.error.code}] ` + response.error.message
+      //           )
+      //         : undefined
+      //     )
+      //   );
+      // }
 
       // console.log("==============================================");
       // console.log("OpenAI response");
@@ -243,6 +270,8 @@ export class OpenAIModel extends BaseModel {
           }
         })
         .flat();
+
+      // console.log(response.usage);
 
       return new Ok({
         role: "agent",

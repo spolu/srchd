@@ -287,11 +287,15 @@ export class Runner {
           text: `\
 CURRENT_TIME: ${new Date().toISOString()}
 
-PENDING_REVIEWS:
-${renderListOfPublications(reviews, { withAbstract: false })}
-
 SUBMITTED_PUBLICATIONS:
 ${renderListOfPublications(publications, { withAbstract: false })}
+
+PENDING_REVIEWS (to prioritize):
+${renderListOfPublications(reviews, { withAbstract: false })}
+
+<system>
+This is an automated system message. There is no user available to respond. Proceed autonomously. Make sure to use tools, only tools have visible side effects.
+<system>
 `,
           provider: null,
         },

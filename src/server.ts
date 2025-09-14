@@ -368,11 +368,13 @@ const prepareChartData = (solutions: any[]) => {
 
 // Home page - List all experiments
 app.get("/", async (c) => {
-  const allExperiments = await ExperimentResource.all();
+  const experiments = (await ExperimentResource.all()).sort(
+    (a, b) => b.toJSON().created.getTime() - a.toJSON().created.getTime()
+  );
 
   const content = `
     <h1>Experiments</h1>
-    ${allExperiments
+    ${experiments
       .map((exp) => {
         const data = exp.toJSON();
         return `
@@ -451,6 +453,9 @@ app.get("/experiments/:id/agents", async (c) => {
         }</a></h3>
           <div class="meta">
             Provider: ${agentData.provider} | Model: ${agentData.model} |
+            Thikning: ${agentData.thinking} | Evolutions: ${
+          agentData.evolutions.length
+        } |
             Created: ${agentData.created.toLocaleString()}
           </div>
         </div>

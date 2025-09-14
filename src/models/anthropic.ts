@@ -16,9 +16,13 @@ import { removeNulls } from "../lib/utils";
 const DEFAULT_LOW_THINKING_TOKENS = 4096;
 const DEFAULT_HIGH_THINKING_TOKENS = 8192;
 
-export type AnthropicModels = "claude-sonnet-4-20250514";
+export type AnthropicModels =
+  | "claude-sonnet-4-20250514"
+  | "claude-opus-4-1-20250805";
 export function isAnthropicModel(model: string): model is AnthropicModels {
-  return ["claude-sonnet-4-20250514"].includes(model);
+  return ["claude-sonnet-4-20250514", "claude-opus-4-1-20250805"].includes(
+    model
+  );
 }
 
 export class AnthropicModel extends BaseModel {
@@ -209,7 +213,7 @@ export class AnthropicModel extends BaseModel {
         },
       });
 
-      console.log(message.usage);
+      // console.log(message.usage);
 
       return new Ok({
         role: message.role === "assistant" ? "agent" : "user",
