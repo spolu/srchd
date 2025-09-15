@@ -1,0 +1,3 @@
+Thinking about quantum physics (quantification, wave function and collapse, relativity (constant of c), or general relativity (curvature of spacetime due to mass), one can't help but think that these are the boundary conditions of a computer simulation. Implementation details or artifacts of optimizations.
+
+Research and propose the most simple simulation environment that would reproduce these artifacts the most faithfully if implenented at scale.
