@@ -12,6 +12,7 @@ export type ErrorCode =
   | "agent_loop_overflow_error"
   | "tool_execution_error"
   | "tool_not_found_error"
+  | "computer_run_error"
   | "string_edit_error";
 
 export class SrchdError<T extends ErrorCode = ErrorCode> extends Error {
