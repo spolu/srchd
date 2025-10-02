@@ -72,12 +72,12 @@ export class Computer {
           MemorySwap: 1024 * 1024 * 1024, // Swap limit
           NanoCpus: 1e9, // Default 1 vCPU limit
           CpuShares: 512, // Lower priority
-          // PidsLimit: 1024, // Limit number of processes
+          PidsLimit: 4096, // Limit number of processes
           Ulimits: [
-            { Name: "nproc", Soft: 2048, Hard: 2048 }, // Process limit
-            { Name: "nofile", Soft: 1024, Hard: 1024 }, // File descriptor limit
-            // { Name: "fsize", Soft: 100 * 1024 * 1024, Hard: 100 * 1024 * 1024 }, // File size limit (100MB)
+            { Name: "nproc", Soft: 65535, Hard: 65535 },
+            { Name: "nofile", Soft: 1048576, Hard: 1048576 },
           ],
+
           CapAdd: [],
           CapDrop: [],
           SecurityOpt: [],
@@ -115,8 +115,8 @@ export class Computer {
     const name = containerName(computerId);
     try {
       const container = docker.getContainer(name);
+      // This will raise an error if the container does not exist which will in turn return null.
       await container.inspect();
-
       return new Computer(computerId, container);
     } catch (err) {
       return null;
@@ -128,6 +128,19 @@ export class Computer {
   ): Promise<Result<Computer, SrchdError>> {
     const c = await Computer.findById(computerId);
     if (c) {
+      const status = await c.status();
+      if (status !== "running") {
+        await c.container.start();
+        if ((await c.status()) !== "running") {
+          return new Err(
+            new SrchdError(
+              "computer_run_error",
+              "Computer `ensure` failed set the computer as running"
+            )
+          );
+        }
+      } else {
+      }
       return new Ok(c);
     }
     return Computer.create(computerId);
@@ -152,6 +165,11 @@ export class Computer {
         )
       );
     }
+  }
+
+  async status(): Promise<string> {
+    const i = await this.container.inspect();
+    return i.State.Status;
   }
 
   async terminate(removeVolume = true): Promise<Result<boolean, SrchdError>> {
@@ -451,9 +469,7 @@ export class Computer {
 // });
 
 (async () => {
-  console.log("TEST");
-  const c = await Computer.ensure("test");
-  console.log(c);
+  const c = await Computer.ensure("test4");
   if (c.isOk()) {
     // console.log("writing file");
     // console.log(
@@ -474,6 +490,8 @@ export class Computer {
     console.log("executing command");
     const e = await c.value.execute("ls");
     console.log(e);
+  } else {
+    console.log(c.error);
   }
 
   console.log(await Computer.listComputerIds());
