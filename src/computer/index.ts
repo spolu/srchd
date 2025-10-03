@@ -9,7 +9,7 @@ const docker = new Docker();
 const COMPUTER_IMAGE = "agent-computer:base";
 const VOLUME_PREFIX = "srchd_computer_";
 const NAME_PREFIX = "srchd-computer-";
-const DEFAULT_WORKDIR = "/workspace";
+const DEFAULT_WORKDIR = "/home/agent";
 
 function containerName(id: string) {
   return `${NAME_PREFIX}${id}`;
@@ -203,6 +203,7 @@ export class Computer {
     options?: {
       cwd?: string;
       env?: Record<string, string>;
+      timeoutMs?: number;
     }
   ): Promise<
     Result<
@@ -215,6 +216,8 @@ export class Computer {
       SrchdError
     >
   > {
+    const timeoutMs = options?.timeoutMs ?? 60000;
+
     try {
       // Sanitize command to prevent injection
       // const sanitizedCmd = cmd.replace(/[;&|`$(){}[\]\\]/g, "\\$&");
@@ -237,52 +240,80 @@ export class Computer {
       let stdout = "";
       let stderr = "";
 
-      await new Promise<void>((resolve, reject) => {
-        if (
-          this.container.modem &&
-          typeof this.container.modem.demuxStream === "function"
-        ) {
-          const outChunks: Buffer[] = [];
-          const errChunks: Buffer[] = [];
+      try {
+        const streamPromise = new Promise<void>((resolve, reject) => {
+          if (
+            this.container.modem &&
+            typeof this.container.modem.demuxStream === "function"
+          ) {
+            const outChunks: Buffer[] = [];
+            const errChunks: Buffer[] = [];
 
-          const outStream = new Writable({
-            write(chunk, encoding, callback) {
-              outChunks.push(Buffer.from(chunk, encoding));
-              callback();
-            },
-          });
+            const outStream = new Writable({
+              write(chunk, encoding, callback) {
+                outChunks.push(Buffer.from(chunk, encoding));
+                callback();
+              },
+            });
 
-          const errStream = new Writable({
-            write(chunk, encoding, callback) {
-              errChunks.push(Buffer.from(chunk, encoding));
-              callback();
-            },
-          });
+            const errStream = new Writable({
+              write(chunk, encoding, callback) {
+                errChunks.push(Buffer.from(chunk, encoding));
+                callback();
+              },
+            });
 
-          this.container.modem.demuxStream(stream, outStream, errStream);
+            this.container.modem.demuxStream(stream, outStream, errStream);
 
-          stream.on("end", () => {
-            stdout = Buffer.concat(outChunks).toString("utf-8");
-            stderr = Buffer.concat(errChunks).toString("utf-8");
-            resolve();
-          });
+            stream.on("end", () => {
+              stdout = Buffer.concat(outChunks).toString("utf-8");
+              stderr = Buffer.concat(errChunks).toString("utf-8");
+              resolve();
+            });
 
-          stream.on("error", (e: any) => {
-            reject(e);
-          });
-        } else {
-          // Fallback for non-demuxed streams
-          const chunks: Buffer[] = [];
-          stream.on("data", (chunk: Buffer) => chunks.push(chunk));
-          stream.on("end", () => {
-            stdout = Buffer.concat(chunks).toString("utf-8");
-            resolve();
-          });
-          stream.on("error", (e: any) => {
-            reject(e);
-          });
+            stream.on("error", (e: any) => {
+              reject(e);
+            });
+          } else {
+            // Fallback for non-demuxed streams
+            const chunks: Buffer[] = [];
+            stream.on("data", (chunk: Buffer) => chunks.push(chunk));
+            stream.on("end", () => {
+              stdout = Buffer.concat(chunks).toString("utf-8");
+              resolve();
+            });
+            stream.on("error", (e: any) => {
+              reject(e);
+            });
+          }
+        });
+
+        let timeoutHandle: NodeJS.Timeout;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutHandle = setTimeout(() => {
+            stream.destroy();
+            reject(
+              new SrchdError(
+                "computer_timeout_error",
+                "Command execution interrupted by timeout, the comand is likely still running."
+              )
+            );
+          }, timeoutMs);
+        });
+
+        try {
+          await Promise.race([streamPromise, timeoutPromise]);
+        } finally {
+          // @ts-ignore tiemeoutHandle is set
+          clearTimeout(timeoutHandle);
         }
-      });
+      } catch (err) {
+        // Return the timeout error as is
+        if (err instanceof SrchdError) {
+          return new Err(err);
+        }
+        throw err;
+      }
 
       const inspect = await exec.inspect();
       const exitCode = inspect.ExitCode ?? 127;
@@ -307,14 +338,14 @@ export class Computer {
 
   checkReadWritePath(p: string) {
     const normalized = path.posix.normalize(p);
-    if (!normalized.startsWith("/workspace/")) {
+    if (!normalized.startsWith(`${DEFAULT_WORKDIR}/`)) {
       return false;
     }
     return true;
   }
 
   async writeFile(
-    path: string, // Absolute starting with /workspace/...
+    path: string, // Absolute starting with /home/agent/...
     data: Buffer,
     mode?: number
   ): Promise<Result<void, SrchdError>> {
@@ -322,7 +353,7 @@ export class Computer {
       return new Err(
         new SrchdError(
           "computer_run_error",
-          "Path must be absolute and under `/workspace`"
+          "Path must be absolute and under `/home/agent`"
         )
       );
     }
@@ -339,7 +370,7 @@ export class Computer {
 
       const pack = tar.pack();
 
-      const fileName = path.slice("/workspace".length + 1);
+      const fileName = path.slice(DEFAULT_WORKDIR.length + 1);
       const agentUid = 1000;
       const agentGid = 1000;
 
@@ -370,7 +401,9 @@ export class Computer {
         }
       );
 
-      const ok = await this.container.putArchive(pack, { path: "/workspace" });
+      const ok = await this.container.putArchive(pack, {
+        path: DEFAULT_WORKDIR,
+      });
       if (!ok) {
         return new Err(
           new SrchdError(
@@ -393,13 +426,13 @@ export class Computer {
   }
 
   async readFile(
-    path: string // Absolute starting with /workspace/...
+    path: string // Absolute starting with /home/agent/...
   ): Promise<Result<Buffer, SrchdError>> {
     if (!this.checkReadWritePath(path)) {
       return new Err(
         new SrchdError(
           "computer_run_error",
-          "Path must be absolute and under `/workspace`"
+          "Path must be absolute and under `/home/agent`"
         )
       );
     }
@@ -469,18 +502,20 @@ export class Computer {
 // });
 
 (async () => {
-  const c = await Computer.ensure("test4");
+  const c = await Computer.ensure("test");
   if (c.isOk()) {
+    // await c.value.terminate();
+
     // console.log("writing file");
     // console.log(
     //   await c.value.writeFile(
-    //     "/workspace/test3/hello.md",
+    //     "/home/agent/test3/hello.md",
     //     Buffer.from("hello world\n")
     //   )
     // );
 
     // console.log("reading file");
-    // const b = await c.value.readFile("/workspace/test3/hello.md");
+    // const b = await c.value.readFile("/home/agent/test3/hello.md");
     // console.log(b);
     // if (b.isOk()) {
     //   const decoded = b.value.toString("utf8");
@@ -488,7 +523,9 @@ export class Computer {
     // }
 
     console.log("executing command");
-    const e = await c.value.execute("ls");
+    const e = await c.value.execute("ls -la", {
+      timeoutMs: 2000,
+    });
     console.log(e);
   } else {
     console.log(c.error);

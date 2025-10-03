@@ -32,9 +32,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create non-root user 'agent' with uid 1000
 RUN groupadd -g 1000 agent && \
     useradd -u 1000 -g 1000 -m -s /bin/bash agent && \
-    # Create workspace directory
-    mkdir -p /workspace && \
-    chown -R agent:agent /workspace && \
     # Give agent sudo access (for permissive mode)
     echo 'agent ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
@@ -55,13 +52,10 @@ RUN python3 -m venv /home/agent/.venv && \
 
 # Configure shell environment
 RUN echo 'export PATH="/home/agent/.venv/bin:$PATH"' >> /home/agent/.bashrc && \
-    echo 'export PYTHONPATH="/workspace:$PYTHONPATH"' >> /home/agent/.bashrc && \
+    echo 'export PYTHONPATH="/home/agent:$PYTHONPATH"' >> /home/agent/.bashrc && \
     echo 'alias ll="ls -la"' >> /home/agent/.bashrc && \
     echo 'alias la="ls -la"' >> /home/agent/.bashrc && \
-    echo 'cd /workspace' >> /home/agent/.bashrc
-
-# Set working directory to workspace
-WORKDIR /workspace
+    echo 'cd /home/agent' >> /home/agent/.bashrc
 
 # Default command
 CMD ["/bin/bash"]
