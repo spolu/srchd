@@ -81,3 +81,13 @@ export function stringEdit({
 
   return new Ok(content.replace(regex, newStr));
 }
+
+export const STRING_EDIT_INSTRUCTIONS = `\
+**Requirements**:
+- \`old_str\` NEEDS TO contain the precise literal content for substituation (preserving all spacing, formatting, line breaks, etc).
+- \`new_str\` NEEDS TO contain the precise literal content that will substitute \`old_str\` (maintaining all spacing, formatting, line breaks, etc). Verify the output maintains proper syntax and follows best practices.
+- DO NOT apply escaping to \`old_str\` or \`new_str\`, as this violates the literal text requirement.
+- \`old_str\` NEEDS TO provide unique identification for the specific instance to replace. Include surrounding textual context BEFORE and AFTER the target content.
+
+**Batch replacements**:
+Define \`expected_replacements\` (optional, defaults to 1) when the change is meant to impact more than one occurrence. If there is a mismatch the tool will error.`;

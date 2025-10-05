@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AgentResource } from "../resources/agent";
-import { errorToCallToolResult, stringEdit } from "../lib/mcp";
+import {
+  errorToCallToolResult,
+  STRING_EDIT_INSTRUCTIONS,
+  stringEdit,
+} from "../lib/mcp";
 import { normalizeError, SrchdError } from "../lib/error";
 
 const SERVER_NAME = "system_prompt_self_edit";
@@ -20,7 +24,7 @@ export function createSystemPromptSelfEditServer(
 
   server.tool(
     "append",
-    "Append text to the end of the current system prompt (no character or separator are injected).",
+    "Append text to the end of the current system prompt (no characters or separators are injected).",
     {
       new_str: z.string().describe("The string to append."),
     },
@@ -50,22 +54,12 @@ export function createSystemPromptSelfEditServer(
     `\
 Modifies the content of the current system prompt by sustituting a specified text segment. This tool demands comprehensive contextual information surrounding the string to replace to ensure accurate targeting.
 
-Requirements:
-(i) \`old_str\` NEEDS TO contain the precise literal content for substituation (preserving all spacing, formatting, line breaks, etc).
-(ii) \`new_str\` NEEDS TO contain the precise literal content that will substitute \`old_str\` (maintaining all spacing, formatting, line breaks, etc). Verify the output maintains proper syntax and follows best practices.
-(iii) DO NOT apply escaping to \`old_str\` or \`new_str\`, as this violates the literal text requirement.
-
-**Critical**:
-- Failure to meet these requirements will cause the tool to fail.
-- \`old_str\` NEEDS TO provide unique identification for the specific instance to replace.Include surrounding textual context BEFORE and AFTER the target content. Multiple matches or inexact matches will cause failure.
-
-**Batch replacements**:
-Define \`expected_replacements\` (optional, defaults to 1) when the change is meant to impact more than one occurrence. If there is a mismatch the tool will error.`,
+${STRING_EDIT_INSTRUCTIONS}`,
     {
       old_str: z
         .string()
         .describe(
-          "The exact text to replace (must match the file contents exactly, including all whitespace and indentation)."
+          "The exact text to replace (must be an exact match of the file current content, including whitespaces and indentation)."
         ),
       new_str: z.string().describe("The edited text to replace `old_str`"),
       expected_replacements: z
@@ -87,7 +81,6 @@ Define \`expected_replacements\` (optional, defaults to 1) when the change is me
           newStr: params.new_str,
           expectedReplacements: params.expected_replacements,
         });
-
         if (update.isErr()) {
           return errorToCallToolResult(update.error);
         }
