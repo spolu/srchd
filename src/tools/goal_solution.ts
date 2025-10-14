@@ -10,10 +10,10 @@ import { SolutionResource } from "../resources/solutions";
 const SERVER_NAME = "goal_solution";
 const SERVER_VERSION = "0.1.0";
 
-export function createGoalSolutionServer(
+export async function createGoalSolutionServer(
   experiment: ExperimentResource,
   agent: AgentResource
-): McpServer {
+): Promise<McpServer> {
   const server = new McpServer({
     name: SERVER_NAME,
     title: "Research goal solution reporting",

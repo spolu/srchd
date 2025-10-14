@@ -64,10 +64,10 @@ export const renderListOfPublications = (
     .join("\n\n");
 };
 
-export function createPublicationsServer(
+export async function createPublicationsServer(
   experiment: ExperimentResource,
   agent: AgentResource
-): McpServer {
+): Promise<McpServer> {
   const server = new McpServer({
     name: SERVER_NAME,
     title: "Publications",

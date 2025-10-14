@@ -9,18 +9,35 @@ import {
 import { ExperimentResource } from "../resources/experiment";
 import { SrchdError } from "../lib/error";
 import { Computer } from "../computer";
+import { readFile } from "fs/promises";
+import { join } from "path";
 
 const SERVER_NAME = "computer";
 const SERVER_VERSION = "0.1.0";
 
-export function createComputerServer(
+function computerId(experiment: ExperimentResource, agent: AgentResource) {
+  return `${experiment.toJSON().name}-${agent.toJSON().name}`;
+}
+
+export async function createComputerServer(
   experiment: ExperimentResource,
   agent: AgentResource
-): McpServer {
+): Promise<McpServer> {
+  const dockerFile = await readFile(
+    join(__dirname, "../computer/Dockerfile"),
+    "utf8"
+  );
+
   const server = new McpServer({
     name: SERVER_NAME,
     title: "Computer",
-    description: "Tools to interact with a computer (docker container).",
+    description: `\
+Tools to interact with a computer (docker container).
+
+Dockerfile used to create the computer:
+\`\`\`
+${dockerFile}
+\`\`\``,
     version: SERVER_VERSION,
   });
 
@@ -31,6 +48,7 @@ Execute a bash command.
 
 - \`stdout\` and \`stderr\` are truncated to 8196 characters.
 - Run blocking commands as daemons using \`&\`.
+- To search files use \`grep\` or \`rg\`.
 - To read large files, use multi-turn \`sed\`, \`awk\`, \`head\` or \`tail\` to limit the output (e.g. \`sed 1,100p largefile.txt\`).
 `,
     {
@@ -46,7 +64,7 @@ Execute a bash command.
         .describe("Timeout in milliseconds. Defaults to 60000ms."),
     },
     async ({ cmd, cwd, env, timeout_ms: timeoutMs }) => {
-      const c = await Computer.ensure(agent.toJSON().name);
+      const c = await Computer.ensure(computerId(experiment, agent));
       if (c.isErr()) {
         return errorToCallToolResult(
           new SrchdError(
@@ -122,7 +140,7 @@ ${STRING_EDIT_INSTRUCTIONS}`,
       new_str: newStr,
       expected_replacements: expectedReplacements,
     }) => {
-      const c = await Computer.ensure(agent.toJSON().name);
+      const c = await Computer.ensure(computerId(experiment, agent));
       if (c.isErr()) {
         return errorToCallToolResult(
           new SrchdError(
@@ -180,7 +198,7 @@ ${STRING_EDIT_INSTRUCTIONS}`,
       new_str: z.string().describe("The string to append."),
     },
     async ({ path, new_str: newStr }) => {
-      const c = await Computer.ensure(agent.toJSON().name);
+      const c = await Computer.ensure(computerId(experiment, agent));
       if (c.isErr()) {
         return errorToCallToolResult(
           new SrchdError(

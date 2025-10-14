@@ -71,6 +71,13 @@ npx tsx src/srchd.ts agent run all -e 20250910-imo2025p5-0
 npx tsx --watch src/srchd.ts serve
 ```
 
+## Computer Use
+
+```
+# Build the base computer image
+docker build -t agent-computer:base src/computer
+```
+
 ## TODO & Next Steps
 
 - [TODO](https://github.com/spolu/srchd/blob/main/TODO)

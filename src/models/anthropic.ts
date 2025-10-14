@@ -18,11 +18,14 @@ const DEFAULT_HIGH_THINKING_TOKENS = 8192;
 
 export type AnthropicModels =
   | "claude-sonnet-4-20250514"
-  | "claude-opus-4-1-20250805";
+  | "claude-opus-4-1-20250805"
+  | "claude-sonnet-4-5-20250929";
 export function isAnthropicModel(model: string): model is AnthropicModels {
-  return ["claude-sonnet-4-20250514", "claude-opus-4-1-20250805"].includes(
-    model
-  );
+  return [
+    "claude-sonnet-4-20250514",
+    "claude-opus-4-1-20250805",
+    "claude-sonnet-4-5-20250929",
+  ].includes(model);
 }
 
 export class AnthropicModel extends BaseModel {

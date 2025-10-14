@@ -28,6 +28,7 @@ import { assertNever } from "./lib/assert";
 import { createGoalSolutionServer } from "./tools/goal_solution";
 import { GeminiModel, GeminiModels } from "./models/gemini";
 import { OpenAIModel, OpenAIModels } from "./models/openai";
+import { createComputerServer } from "./tools/computer";
 
 const MAX_TOKENS_COUNT = 163840;
 
@@ -83,13 +84,16 @@ export class Runner {
     }
 
     const [publicationClient] = await createClientServerPair(
-      createPublicationsServer(experiment, agent)
+      await createPublicationsServer(experiment, agent)
     );
     const [systemPromptSelfEditClient] = await createClientServerPair(
-      createSystemPromptSelfEditServer(agent)
+      await createSystemPromptSelfEditServer(agent)
     );
     const [goalSolutionClient] = await createClientServerPair(
-      createGoalSolutionServer(experiment, agent)
+      await createGoalSolutionServer(experiment, agent)
+    );
+    const [computerClient] = await createClientServerPair(
+      await createComputerServer(experiment, agent)
     );
 
     const model = (() => {
@@ -124,7 +128,12 @@ export class Runner {
     const runner = await Runner.initialize(
       experiment,
       agent,
-      [publicationClient, systemPromptSelfEditClient, goalSolutionClient],
+      [
+        publicationClient,
+        systemPromptSelfEditClient,
+        goalSolutionClient,
+        computerClient,
+      ],
       model
     );
     if (runner.isErr()) {
