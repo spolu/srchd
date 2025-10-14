@@ -23,11 +23,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Node.js ecosystem
     nodejs npm \
     # Network tools
-    netcat-openbsd iputils-ping dnsutils \
+    netcat-openbsd iputils-ping dnsutils openssh-client \
     # Archive tools
     zip unzip tar gzip \
     # Text processing
-    jq xmlstarlet
+    jq xmlstarlet \
+    # Search Tools
+    ripgrep
 
 # Create non-root user 'agent' with uid 1000
 RUN groupadd -g 1000 agent && \

@@ -11,9 +11,9 @@ import { normalizeError, SrchdError } from "../lib/error";
 const SERVER_NAME = "system_prompt_self_edit";
 const SERVER_VERSION = "0.1.0";
 
-export function createSystemPromptSelfEditServer(
+export async function createSystemPromptSelfEditServer(
   agent: AgentResource
-): McpServer {
+): Promise<McpServer> {
   const server = new McpServer({
     name: SERVER_NAME,
     title: "System prompt self-edit",

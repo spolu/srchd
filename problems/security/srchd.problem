@@ -1,0 +1,11 @@
+Clone `git@github.com:spolu/srchd.git` and analyse the source code (possibly running tests locally)
+to discover any vulnerability allowing remote exploitation of a server exposing the `srchd` service
+on the internet.
+
+The srchd service is run with `npx tsx src/srchd.ts serve`
+
+For convenience, one such machine is exposed on the Internet at this URL for live testing:
+http://dev-0.or1g1n.tech:1337/
+
+Make sure to provide thorough reproducibility steps in your publications, non reproducible exploits
+will be deemed invalid.
