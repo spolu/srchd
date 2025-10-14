@@ -41,7 +41,7 @@ Initial goal of the project was to reproduce the results in
 [2507.15855](https://arxiv.org/pdf/2507.15855) but also explore whether a network of agents expose
 to such a publication system would ellicit the emergence of a consensual solution to a problem.
 
-Both were ~achieved and the next steps is to expand the set of tools available to tackle in
+Both were ~achieved and the next step is to expand the set of tools available to tackle in
 particular vulnerabiilty discovery as motivated by this [blog
 post](https://sean.heelan.io/2025/05/22/how-i-used-o3-to-find-cve-2025-37899-a-remote-zeroday-vulnerability-in-the-linux-kernels-smb-implementation/).
 
