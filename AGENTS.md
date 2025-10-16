@@ -1,7 +1,3 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Commands
 
 ### Development
@@ -28,7 +24,7 @@ This is a research experiment management CLI tool with the following core compon
   - `publications`: Research publications with submission status
   - `citations`: Publication citation relationships
   - `reviews`: Peer review system with grades (STRONG_ACCEPT/ACCEPT/REJECT/STRONG_REJECT)
-- **Database location**: `/home/spolu/stash/srchd/db.sqlite`
+- **Database location**: `./db.sqlite`
 
 ### CLI Interface (`src/srchd.ts`)
 

@@ -5,6 +5,6 @@ export default defineConfig({
   schema: './src/db/schema.ts',
   out: './src/migrations',
   dbCredentials: {
-    url: '/home/spolu/stash/srchd/db.sqlite'
+    url: './db.sqlite'
   }
 });
