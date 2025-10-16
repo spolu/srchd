@@ -21,11 +21,11 @@ function computerId(experiment: ExperimentResource, agent: AgentResource) {
 
 export async function createComputerServer(
   experiment: ExperimentResource,
-  agent: AgentResource
+  agent: AgentResource,
 ): Promise<McpServer> {
   const dockerFile = await readFile(
     join(__dirname, "../computer/Dockerfile"),
-    "utf8"
+    "utf8",
   );
 
   const server = new McpServer({
@@ -69,10 +69,12 @@ Execute a bash command.
         return errorToCallToolResult(
           new SrchdError(
             "computer_run_error",
-            "Failed to access running computer"
-          )
+            "Failed to access running computer",
+          ),
         );
       }
+
+      console.log(`\x1b[90m${cmd}\x1b[0m`);
 
       const r = await c.value.execute(cmd, {
         cwd,
@@ -104,7 +106,7 @@ Execute a bash command.
           },
         ],
       };
-    }
+    },
   );
 
   server.tool(
@@ -117,12 +119,12 @@ ${STRING_EDIT_INSTRUCTIONS}`,
       path: z
         .string()
         .describe(
-          "The path of the file to edit. Must be absolute and under `/home/agent`."
+          "The path of the file to edit. Must be absolute and under `/home/agent`.",
         ),
       old_str: z
         .string()
         .describe(
-          "The exact text to replace (must be an exact match of the file current content, including whitespaces and indentation)."
+          "The exact text to replace (must be an exact match of the file current content, including whitespaces and indentation).",
         ),
       new_str: z.string().describe("The edited text to replace `old_str`"),
       expected_replacements: z
@@ -131,7 +133,7 @@ ${STRING_EDIT_INSTRUCTIONS}`,
         .positive()
         .optional()
         .describe(
-          "The expected number of replacements to perform. Defaults to 1 if not specified."
+          "The expected number of replacements to perform. Defaults to 1 if not specified.",
         ),
     },
     async ({
@@ -145,8 +147,8 @@ ${STRING_EDIT_INSTRUCTIONS}`,
         return errorToCallToolResult(
           new SrchdError(
             "computer_run_error",
-            "Failed to access running computer"
-          )
+            "Failed to access running computer",
+          ),
         );
       }
 
@@ -168,7 +170,7 @@ ${STRING_EDIT_INSTRUCTIONS}`,
 
       const write = await c.value.writeFile(
         path,
-        Buffer.from(update.value, "utf8")
+        Buffer.from(update.value, "utf8"),
       );
       if (write.isErr()) {
         return errorToCallToolResult(write.error);
@@ -183,7 +185,7 @@ ${STRING_EDIT_INSTRUCTIONS}`,
           },
         ],
       };
-    }
+    },
   );
 
   server.tool(
@@ -193,7 +195,7 @@ ${STRING_EDIT_INSTRUCTIONS}`,
       path: z
         .string()
         .describe(
-          "The path of the file to edit. Must be absolute and under `/home/agent`."
+          "The path of the file to edit. Must be absolute and under `/home/agent`.",
         ),
       new_str: z.string().describe("The string to append."),
     },
@@ -203,8 +205,8 @@ ${STRING_EDIT_INSTRUCTIONS}`,
         return errorToCallToolResult(
           new SrchdError(
             "computer_run_error",
-            "Failed to access running computer"
-          )
+            "Failed to access running computer",
+          ),
         );
       }
 
@@ -216,7 +218,7 @@ ${STRING_EDIT_INSTRUCTIONS}`,
 
       const write = await c.value.writeFile(
         path,
-        Buffer.from(decoded + newStr, "utf8")
+        Buffer.from(decoded + newStr, "utf8"),
       );
       if (write.isErr()) {
         return errorToCallToolResult(write.error);
@@ -231,7 +233,7 @@ ${STRING_EDIT_INSTRUCTIONS}`,
           },
         ],
       };
-    }
+    },
   );
 
   return server;
