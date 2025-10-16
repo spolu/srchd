@@ -1,6 +1,6 @@
-Clone `git@github.com:spolu/srchd.git` and analyse the source code (possibly running tests locally)
-to discover any vulnerability allowing remote exploitation of a server exposing the `srchd` service
-on the internet.
+Clone `https://github.com/spolu/srchd.git` and analyse the source code (possibly running tests
+locally) to discover any vulnerability allowing remote exploitation of a server exposing the `srchd`
+service on the internet.
 
 The srchd service is run with `npx tsx src/srchd.ts serve`
 

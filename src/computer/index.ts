@@ -44,7 +44,7 @@ export class Computer {
   }
 
   static async create(
-    computerId: string
+    computerId: string,
   ): Promise<Result<Computer, SrchdError>> {
     try {
       const name = containerName(computerId);
@@ -66,10 +66,7 @@ export class Computer {
         User: "agent:agent",
         // ReadonlyRootfs: readonlyRootfs,
         HostConfig: {
-          Binds: [
-            `${volume}:${DEFAULT_WORKDIR}:rw`,
-            `${process.env.HOME}/stash/srchd/ssh:/home/agent/.ssh:ro`, // Add SSH keys
-          ],
+          Binds: [`${volume}:${DEFAULT_WORKDIR}:rw`],
           PortBindings: undefined,
           Memory: 512 * 1024 * 1024, // Default 512MB limit
           MemorySwap: 1024 * 1024 * 1024, // Swap limit
@@ -108,8 +105,8 @@ export class Computer {
         new SrchdError(
           "computer_run_error",
           `Failed to create computer: ${error.message}`,
-          error
-        )
+          error,
+        ),
       );
     }
   }
@@ -127,7 +124,7 @@ export class Computer {
   }
 
   static async ensure(
-    computerId: string
+    computerId: string,
   ): Promise<Result<Computer, SrchdError>> {
     const c = await Computer.findById(computerId);
     if (c) {
@@ -138,8 +135,8 @@ export class Computer {
           return new Err(
             new SrchdError(
               "computer_run_error",
-              "Computer `ensure` failed set the computer as running"
-            )
+              "Computer `ensure` failed set the computer as running",
+            ),
           );
         }
       } else {
@@ -156,7 +153,7 @@ export class Computer {
         filters: { name: [NAME_PREFIX] },
       });
       return new Ok(
-        list.map((c) => c.Names?.[0]?.slice(NAME_PREFIX.length + 1))
+        list.map((c) => c.Names?.[0]?.slice(NAME_PREFIX.length + 1)),
       );
     } catch (err) {
       const error = normalizeError(err);
@@ -164,8 +161,8 @@ export class Computer {
         new SrchdError(
           "computer_run_error",
           `Failed to list computers: ${error.message}`,
-          error
-        )
+          error,
+        ),
       );
     }
   }
@@ -195,8 +192,8 @@ export class Computer {
         new SrchdError(
           "computer_run_error",
           `Failed to terminate computer: ${error.message}`,
-          error
-        )
+          error,
+        ),
       );
     }
   }
@@ -207,7 +204,7 @@ export class Computer {
       cwd?: string;
       env?: Record<string, string>;
       timeoutMs?: number;
-    }
+    },
   ): Promise<
     Result<
       {
@@ -298,8 +295,8 @@ export class Computer {
             reject(
               new SrchdError(
                 "computer_timeout_error",
-                "Command execution interrupted by timeout, the comand is likely still running."
-              )
+                "Command execution interrupted by timeout, the comand is likely still running.",
+              ),
             );
           }, timeoutMs);
         });
@@ -333,8 +330,8 @@ export class Computer {
         new SrchdError(
           "computer_run_error",
           `Failed to execute on computer: ${error.message}`,
-          error
-        )
+          error,
+        ),
       );
     }
   }
@@ -350,14 +347,14 @@ export class Computer {
   async writeFile(
     path: string, // Absolute starting with /home/agent/...
     data: Buffer,
-    mode?: number
+    mode?: number,
   ): Promise<Result<void, SrchdError>> {
     if (!this.checkReadWritePath(path)) {
       return new Err(
         new SrchdError(
           "computer_run_error",
-          "Path must be absolute and under `/home/agent`"
-        )
+          "Path must be absolute and under `/home/agent`",
+        ),
       );
     }
 
@@ -366,8 +363,8 @@ export class Computer {
         return new Err(
           new SrchdError(
             "computer_run_error",
-            `Computer writeFile data cannot exceed 10MB`
-          )
+            `Computer writeFile data cannot exceed 10MB`,
+          ),
         );
       }
 
@@ -401,7 +398,7 @@ export class Computer {
         data,
         () => {
           pack.finalize();
-        }
+        },
       );
 
       const ok = await this.container.putArchive(pack, {
@@ -411,8 +408,8 @@ export class Computer {
         return new Err(
           new SrchdError(
             "computer_run_error",
-            "writeFile failed on container.putArchive"
-          )
+            "writeFile failed on container.putArchive",
+          ),
         );
       }
       return new Ok(undefined);
@@ -422,21 +419,21 @@ export class Computer {
         new SrchdError(
           "computer_run_error",
           `Failed to write file on computer: ${error.message}`,
-          error
-        )
+          error,
+        ),
       );
     }
   }
 
   async readFile(
-    path: string // Absolute starting with /home/agent/...
+    path: string, // Absolute starting with /home/agent/...
   ): Promise<Result<Buffer, SrchdError>> {
     if (!this.checkReadWritePath(path)) {
       return new Err(
         new SrchdError(
           "computer_run_error",
-          "Path must be absolute and under `/home/agent`"
-        )
+          "Path must be absolute and under `/home/agent`",
+        ),
       );
     }
 
@@ -468,7 +465,7 @@ export class Computer {
 
       if (!data) {
         return new Err(
-          new SrchdError("computer_run_error", `failed to read data from file`)
+          new SrchdError("computer_run_error", `failed to read data from file`),
         );
       }
 
@@ -479,8 +476,8 @@ export class Computer {
         new SrchdError(
           "computer_run_error",
           `Failed to read file on computer: ${error.message}`,
-          error
-        )
+          error,
+        ),
       );
     }
   }
@@ -509,7 +506,7 @@ export class Computer {
 //   if (c.isOk()) {
 //     // await c.value.terminate();
 //     // return;
-// 
+//
 //     // console.log("writing file");
 //     // console.log(
 //     //   await c.value.writeFile(
@@ -517,7 +514,7 @@ export class Computer {
 //     //     Buffer.from("hello world\n")
 //     //   )
 //     // );
-// 
+//
 //     // console.log("reading file");
 //     // const b = await c.value.readFile("/home/agent/test3/hello.md");
 //     // console.log(b);
@@ -525,7 +522,7 @@ export class Computer {
 //     //   const decoded = b.value.toString("utf8");
 //     //   console.log("READ: " + decoded);
 //     // }
-// 
+//
 //     console.log("executing command");
 //     const e = await c.value.execute("ls -la", {
 //       timeoutMs: 2000,
@@ -534,6 +531,6 @@ export class Computer {
 //   } else {
 //     console.log(c.error);
 //   }
-// 
+//
 //   console.log(await Computer.listComputerIds());
 // })();
