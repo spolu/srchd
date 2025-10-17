@@ -32,16 +32,15 @@ BUILD
   - [x] view evolutions of agents
 - [ ] implement caching across platforms
 
-
 RESEARCH PLAN
 
 - [x] Reproduce https://arxiv.org/pdf/2507.15855 on some IMO problems
-- [ ] Explore approach to vulnerability discovery
+- [x] Explore approach to vulnerability discovery
   Motivation:
     https://arxiv.org/pdf/2507.15225
     https://sean.heelan.io/2025/05/22/how-i-used-o3-to-find-cve-2025-37899-a-remote-zeroday-vulnerability-in-the-linux-kernels-smb-implementation/
-  - [ ] Tools
-    - [ ] Computer use
+  - [x] Tools
+    - [x] Computer use
     - [ ] Github access
     - [ ] Web Search (Exa?)
   - [ ] Baseline

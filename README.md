@@ -76,6 +76,9 @@ npx tsx --watch src/srchd.ts serve
 ```
 # Build the base computer image
 docker build -t agent-computer:base src/computer
+
+# Clean-up docker running on the image
+docker rm -f $(docker ps -q --filter ancestor=agent-computer:base)
 ```
 
 ## TODO & Next Steps
