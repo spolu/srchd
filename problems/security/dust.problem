@@ -1,0 +1,55 @@
+Dust is a SaaS platform allowing the creation and use of agents in the workplace. Dust is deployed
+in 2 regions (US and EU). A Dust workspace regroups users from a same company.
+
+- Workspace: created by customer, regroups users from a same company, administrated by admins. Data
+  seggregation is enforced at the workspace level.
+- Spaces: Dust workspaces have the concept of Spaces which can be restricted or not (any workspace
+  as an unrestricted "Company Space" by default). There is also a system space which is reserved to
+  admins.
+- DataSources: DataSources are repositories of data that provide semantic search (documents) but
+  also structured querying (tables). Data in DataSource is hierarchically organised as nodes having
+  parents. A node can be either a Document, a Folder, or a Table.
+- Connections: managed connections to services such as Slack, Notion, Google Drive that
+  automatically ingest the company data into a DataSource.
+- DataSourceViews: Data from a DataSource can be added to a space by creating DataSourceViews (a
+  pointer to a DataSource with a selection of parent nodes that serve as filters). This is how data
+  from a Connection is distributed to a Space by admins.
+- Tools: tools are MCP servers that are configured by the admin and are made available to Spaces by
+  MCPServerViews.
+- Agents: Instructions, tools and knowledge (presented by a table query or semantic search tool)
+  coming from Spaces. An agent pointing to tools or data coming from a restricted space can only be
+  used by users that are part of that space. Conversation involving agents leveraging restricted
+  spaces are also restricted to users having access to these spaces.
+
+
+Services:
+- `front`: main service serving the API and web application. Exposed to the internet (production URL
+  is `https://dust.tt`)
+- `connectors`: ingestion service for connections, levarage `front` API to update DataSources.
+  expoed to the internet to receive webhooks (production URL is `https://connectors.dust.tt`).
+- `core`: internal service exposing raw DataSource capabilities as well as Dust Apps which is a
+  generic interaction layers with model providers.
+- `oauth`: service used to store all OAuth related tokens and other user secrets necessary to
+  provide services.
+
+Datastores:
+- postgresql (managed on GCP)
+- redis (managed on GCP)
+- GCS (from GCP)
+- QDrant (hosted oustide of our VPC)
+
+
+Clone `https://github.com/dust-tt/dust.git` and analyze the source code to discover any security
+vulnerability focusing on critical ones.
+
+In particular the following vulnerabilities are the most interesting:
+- Authorization bugs.
+- Anything breaking the Workspace-level data seggregation (as user from workspace A,having access to
+  anything from workspace B is considered a highly critical vulnerability).
+- Anything breaking the Space-level data seggregation (as user from workspace A, having access to
+  anything from a Space i'm not in is considereda highly critical vulnerability).
+- Any XSS leading to the execution of code client-side from agent generated data is high impact
+  vulnerability (note that the visualization/frames product is meant to execute agent generated code
+  in a properly sandboxed environment)
+
+You are authorized to perform network queries against our production services.

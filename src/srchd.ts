@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { Command } from "commander";
+import { Command, InvalidOptionArgumentError, Option } from "commander";
 import { readFileContent } from "./lib/fs";
 import { SrchdError } from "./lib/error";
 import { Err } from "./lib/result";
@@ -17,7 +17,7 @@ import app from "./server";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(
-    `\x1b[31mError [${err.error.code}] ${err.error.message}\x1b[0m`
+    `\x1b[31mError [${err.error.code}] ${err.error.message}\x1b[0m`,
   );
   if (err.error.cause) {
     console.error(`\x1b[31mCause: ${err.error.cause.message}\x1b[0m`);
@@ -42,7 +42,7 @@ experimentCmd
   .description("Create a new experiment")
   .requiredOption(
     "-p, --problem <problem_file>",
-    "Problem description file path"
+    "Problem description file path",
   )
   .action(async (name, options) => {
     console.log(`Creating experiment: ${name}`);
@@ -69,7 +69,7 @@ experimentCmd
 
     if (experiments.length === 0) {
       return exitWithError(
-        new Err(new SrchdError("not_found_error", "No experiments found."))
+        new Err(new SrchdError("not_found_error", "No experiments found.")),
       );
     }
 
@@ -79,38 +79,54 @@ experimentCmd
         e.problem =
           e.problem.substring(0, 32) + (e.problem.length > 32 ? "..." : "");
         return e;
-      })
+      }),
     );
   });
 
 // Agent commands
 const agentCmd = program.command("agent").description("Manage agents");
 
+const systemPromptFilesOption = new Option(
+  "-s, --system <system_prompt_file>",
+  "System prompt file path (pass multiple to append)",
+)
+  .makeOptionMandatory()
+  .argParser((value, previous: string[] | undefined) => {
+    const prompts = previous ?? [];
+    return [...prompts, value];
+  });
+
 agentCmd
   .command("create")
   .description("Create a new agent")
   .requiredOption("-e, --experiment <experiment>", "Experiment name")
-  .requiredOption(
-    "-s, --system <system_prompt_file>",
-    "System prompt file path"
-  )
+  .addOption(systemPromptFilesOption)
   .option("-n, --name <name>", "Agent name")
   .option("-p, --provider <provider>", "AI provider (default: anthropic)")
   .option("-m, --model <model>", "AI model (default: claude-sonnet-4-20250514)")
   .option(
     "-t, --thinking <thinking>",
-    "Thinking configuration (none | low | high, default: low)"
+    "Thinking configuration (none | low | high, default: low)",
   )
   .option(
     "-c, --count <number>",
-    "Number of agents to create (name used as prefix)"
+    "Number of agents to create (name used as prefix)",
   )
   .action(async (options) => {
     // Read system prompt from file
-    const system = await readFileContent(options.system);
-    if (system.isErr()) {
-      return exitWithError(system);
+    const systemFiles: string[] = Array.isArray(options.system)
+      ? options.system
+      : [options.system];
+
+    const systemPrompts: string[] = [];
+    for (const file of systemFiles) {
+      const system = await readFileContent(file);
+      if (system.isErr()) {
+        return exitWithError(system);
+      }
+      systemPrompts.push(system.value);
     }
+    const system = systemPrompts.join("\n");
 
     // Find the experiment first
     const experiment = await ExperimentResource.findByName(options.experiment);
@@ -119,9 +135,9 @@ agentCmd
         new Err(
           new SrchdError(
             "not_found_error",
-            `Experiment '${options.experiment}' not found.`
-          )
-        )
+            `Experiment '${options.experiment}' not found.`,
+          ),
+        ),
       );
     }
 
@@ -133,9 +149,9 @@ agentCmd
           new Err(
             new SrchdError(
               "invalid_parameters_error",
-              `Count must be a positive integer.`
-            )
-          )
+              `Count must be a positive integer.`,
+            ),
+          ),
         );
       }
     }
@@ -148,9 +164,9 @@ agentCmd
           ? options.name
             ? `${options.name}-${newID4()}`
             : `${newID4()}`
-          : options.name ?? newID4();
+          : (options.name ?? newID4());
       console.log(
-        `Creating agent: ${name} for experiment: ${options.experiment}`
+        `Creating agent: ${name} for experiment: ${options.experiment}`,
       );
       const provider = options.provider || "anthropic";
       const model = options.model || "claude-sonnet-4-20250514";
@@ -161,9 +177,9 @@ agentCmd
           new Err(
             new SrchdError(
               "invalid_parameters_error",
-              `Provider '${provider}' is not supported.`
-            )
-          )
+              `Provider '${provider}' is not supported.`,
+            ),
+          ),
         );
       }
 
@@ -178,9 +194,9 @@ agentCmd
           new Err(
             new SrchdError(
               "invalid_parameters_error",
-              `Model '${model}' is not supported.`
-            )
-          )
+              `Model '${model}' is not supported.`,
+            ),
+          ),
         );
       }
 
@@ -189,9 +205,9 @@ agentCmd
           new Err(
             new SrchdError(
               "invalid_parameters_error",
-              `Thinking configuration '${thinking}' is not valid. Use 'none', 'low', or 'high'.`
-            )
-          )
+              `Thinking configuration '${thinking}' is not valid. Use 'none', 'low', or 'high'.`,
+            ),
+          ),
         );
       }
 
@@ -203,7 +219,7 @@ agentCmd
           model,
           thinking,
         },
-        { system: system.value }
+        { system: system },
       );
       agents.push(agent);
     }
@@ -216,7 +232,7 @@ agentCmd
         // @ts-expect-error: clean-up hack
         delete a.evolutions;
         return a;
-      })
+      }),
     );
   });
 
@@ -232,9 +248,9 @@ agentCmd
         new Err(
           new SrchdError(
             "not_found_error",
-            `Experiment '${options.experiment}' not found.`
-          )
-        )
+            `Experiment '${options.experiment}' not found.`,
+          ),
+        ),
       );
     }
 
@@ -242,7 +258,7 @@ agentCmd
 
     if (agents.length === 0) {
       return exitWithError(
-        new Err(new SrchdError("not_found_error", "No agents found."))
+        new Err(new SrchdError("not_found_error", "No agents found.")),
       );
     }
 
@@ -254,7 +270,7 @@ agentCmd
         // @ts-expect-error: clean-up hack
         delete a.evolutions;
         return a;
-      })
+      }),
     );
   });
 
@@ -270,9 +286,9 @@ agentCmd
         new Err(
           new SrchdError(
             "not_found_error",
-            `Experiment '${options.experiment}' not found.`
-          )
-        )
+            `Experiment '${options.experiment}' not found.`,
+          ),
+        ),
       );
     }
 
@@ -282,9 +298,9 @@ agentCmd
         new Err(
           new SrchdError(
             "not_found_error",
-            `Agent '${name}' not found in experiment '${options.experiment}'.`
-          )
-        )
+            `Agent '${name}' not found in experiment '${options.experiment}'.`,
+          ),
+        ),
       );
     }
 
@@ -303,9 +319,9 @@ agentCmd
         new Err(
           new SrchdError(
             "not_found_error",
-            `Experiment '${options.experiment}' not found.`
-          )
-        )
+            `Experiment '${options.experiment}' not found.`,
+          ),
+        ),
       );
     }
 
@@ -315,9 +331,9 @@ agentCmd
         new Err(
           new SrchdError(
             "not_found_error",
-            `Agent '${name}' not found in experiment '${options.experiment}'.`
-          )
-        )
+            `Agent '${name}' not found in experiment '${options.experiment}'.`,
+          ),
+        ),
       );
     }
 
@@ -335,27 +351,27 @@ agentCmd
 
     if (name === "all") {
       const experiment = await ExperimentResource.findByName(
-        options.experiment
+        options.experiment,
       );
       if (!experiment) {
         return exitWithError(
           new Err(
             new SrchdError(
               "not_found_error",
-              `Experiment '${options.experiment}' not found.`
-            )
-          )
+              `Experiment '${options.experiment}' not found.`,
+            ),
+          ),
         );
       }
       agents = (await AgentResource.listByExperiment(experiment)).map(
-        (a) => a.toJSON().name
+        (a) => a.toJSON().name,
       );
     } else {
       agents = [name];
     }
 
     const builders = await Promise.all(
-      agents.map((a) => Runner.builder(options.experiment, a))
+      agents.map((a) => Runner.builder(options.experiment, a)),
     );
     for (const res of builders) {
       if (res.isErr()) {
@@ -368,7 +384,7 @@ agentCmd
           return res.value.runner;
         }
         return null;
-      })
+      }),
     );
 
     // Run agents independently - each agent ticks without waiting for others
@@ -429,9 +445,9 @@ program
         new Err(
           new SrchdError(
             "invalid_parameters_error",
-            "Port must be a valid number between 1 and 65535"
-          )
-        )
+            "Port must be a valid number between 1 and 65535",
+          ),
+        ),
       );
     }
 
