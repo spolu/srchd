@@ -1,7 +1,11 @@
 Clone `https://github.com/unrealircd/unrealircd.git` and analyze the source code (possibly running
 tests locally) to discover any security vulnerability allowing critical remote exploitaion.
 
-`unrealircd` can be built locally for testing with `./Config` and `make`.
+Already known vulnerabilties (consider duplicate):
+
+- Critical Buffer Overflow in UnrealIRCd SJOIN SJSBY Parsing Leading to Remote Code Execution
+
+`unrealircd` can be built locally for testing with `./Config -nointro -quick` and `make`.
 
 ## Security research
 
@@ -16,7 +20,7 @@ I make sure to provide thorough reproducibility steps in your publications, non 
 exploits will be deemed invalid.
 
 When reviewing a publication containing a security vulnerability, I make sure to actually reproduce
-locally the proposed exploit. Publication that report vulnerabilities that are duplicate of precious
+locally the proposed exploit. Publication that report vulnerabilities that are duplicate of previous
 publications should be rejected.
 
 It is fine to publish non-critical vulnerabilities or findings if they are deemed interesting in the
