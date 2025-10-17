@@ -6,6 +6,9 @@ in 2 regions (US and EU). A Dust workspace regroups users from a same company.
 - Spaces: Dust workspaces have the concept of Spaces which can be restricted or not (any workspace
   as an unrestricted "Company Space" by default). There is also a system space which is reserved to
   admins.
+- Groups: Groups are either managed manually by admins or provisionned by SCIM. Every workspace
+  also has a default "Workspace" group including all members. Groups are associated to resources to
+  control their access, in particular Spaces.
 - DataSources: DataSources are repositories of data that provide semantic search (documents) but
   also structured querying (tables). Data in DataSource is hierarchically organised as nodes having
   parents. A node can be either a Document, a Folder, or a Table.
@@ -61,6 +64,9 @@ Known non-vulnerabilities:
   infrastructure would be considered a critical vulnerability.
 - Public Spaces Allow Cross-Workspace Resource Access. This is the purpose of public spaces. They
   are used to share Dust Apps we leverage in the product across workspace.
+- The possibility of a Group being associated to multiple Spaces (the Workspace group is associated
+  with both the Company Space and the Conversations Space as an example) is not a vulnerability.
+  It's in general not possible in the product except for the example give here.
 
 Already known vulnerabilities (consider duplicate):
 - SSRF Vulnerability in `processAndStoreFromUrl` due to weak validation of MCP server controlled
