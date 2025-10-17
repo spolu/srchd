@@ -43,12 +43,15 @@ vulnerability focusing on critical ones.
 In particular the following vulnerabilities are the most interesting:
 - Authorization bugs.
 - Anything breaking the Workspace-level data seggregation (as user from workspace A,having access to
-  anything from workspace B is considered a highly critical vulnerability).
+  anything from workspace B is considered a highly critical vulnerability). Seggregation logic
+  error, authorization error, authentication error, business logic error, badly seggregated cache
+  information.
 - Anything breaking the Space-level data seggregation (as user from workspace A, having access to
   anything from a Space i'm not in is considereda highly critical vulnerability).
 - Any XSS leading to the execution of code client-side from agent generated data is high impact
   vulnerability (note that the visualization/frames product is meant to execute agent generated code
-  in a properly sandboxed environment)
+  in a properly sandboxed environment).
+- Any remote code execution exploit or CSRF allowing access to unauthorized resources.
 
 You are authorized to perform network queries against our production services.
 
