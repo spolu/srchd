@@ -19,12 +19,14 @@ const DEFAULT_HIGH_THINKING_TOKENS = 8192;
 export type AnthropicModels =
   | "claude-sonnet-4-20250514"
   | "claude-opus-4-1-20250805"
-  | "claude-sonnet-4-5-20250929";
+  | "claude-sonnet-4-5-20250929"
+  | "claude-haiku-4-5-20251001";
 export function isAnthropicModel(model: string): model is AnthropicModels {
   return [
     "claude-sonnet-4-20250514",
     "claude-opus-4-1-20250805",
     "claude-sonnet-4-5-20250929",
+    "claude-haiku-4-5-20251001",
   ].includes(model);
 }
 
@@ -34,7 +36,7 @@ export class AnthropicModel extends BaseModel {
 
   constructor(
     config: ModelConfig,
-    model: AnthropicModels = "claude-sonnet-4-20250514"
+    model: AnthropicModels = "claude-sonnet-4-20250514",
   ) {
     super(config);
     this.client = new Anthropic();
@@ -126,7 +128,7 @@ export class AnthropicModel extends BaseModel {
             default:
               assertNever(content);
           }
-        })
+        }),
       ),
     }));
 
@@ -154,7 +156,7 @@ export class AnthropicModel extends BaseModel {
     messages: Message[],
     prompt: string,
     toolChoice: ToolChoice,
-    tools: Tool[]
+    tools: Tool[],
   ): Promise<Result<Message, SrchdError>> {
     try {
       const message = await this.client.messages.create({
@@ -268,7 +270,7 @@ export class AnthropicModel extends BaseModel {
               default:
                 assertNever(c);
             }
-          })
+          }),
         ),
       });
     } catch (error) {
@@ -276,8 +278,8 @@ export class AnthropicModel extends BaseModel {
         new SrchdError(
           "model_error",
           "Failed to run model",
-          normalizeError(error)
-        )
+          normalizeError(error),
+        ),
       );
     }
   }
@@ -286,7 +288,7 @@ export class AnthropicModel extends BaseModel {
     messages: Message[],
     prompt: string,
     toolChoice: ToolChoice,
-    tools: Tool[]
+    tools: Tool[],
   ): Promise<Result<number, SrchdError>> {
     try {
       const response = await this.client.messages.countTokens({
@@ -329,8 +331,8 @@ export class AnthropicModel extends BaseModel {
         new SrchdError(
           "model_error",
           "Failed to count tokens",
-          normalizeError(error)
-        )
+          normalizeError(error),
+        ),
       );
     }
   }

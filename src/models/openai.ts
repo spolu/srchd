@@ -9,9 +9,20 @@ import { get_encoding } from "tiktoken";
 
 const ENCODING = get_encoding("o200k_base");
 
-export type OpenAIModels = "gpt-5" | "gpt-5-mini" | "gpt-5-nano" | "gpt-4.1";
+export type OpenAIModels =
+  | "gpt-5"
+  | "gpt-5-mini"
+  | "gpt-5-nano"
+  | "gpt-4.1"
+  | "gpt-5-codex";
 export function isOpenAIModel(model: string): model is OpenAIModels {
-  return ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-4.1"].includes(model);
+  return [
+    "gpt-5-codex",
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "gpt-4.1",
+  ].includes(model);
 }
 
 export class OpenAIModel extends BaseModel {
@@ -44,7 +55,7 @@ export class OpenAIModel extends BaseModel {
                             ? {
                                 error: content.content,
                               }
-                            : content
+                            : content,
                         ),
                       },
                     ];
@@ -148,7 +159,7 @@ export class OpenAIModel extends BaseModel {
     messages: Message[],
     prompt: string,
     toolChoice: ToolChoice,
-    tools: Tool[]
+    tools: Tool[],
   ): Promise<Result<Message, SrchdError>> {
     try {
       const input = this.messages(messages);
@@ -282,8 +293,8 @@ export class OpenAIModel extends BaseModel {
         new SrchdError(
           "model_error",
           "Failed to run model",
-          normalizeError(error)
-        )
+          normalizeError(error),
+        ),
       );
     }
   }
@@ -292,7 +303,7 @@ export class OpenAIModel extends BaseModel {
     messages: Message[],
     prompt: string,
     toolChoice: ToolChoice,
-    tools: Tool[]
+    tools: Tool[],
   ): Promise<Result<number, SrchdError>> {
     const tokenCount =
       ENCODING.encode(prompt).length +
