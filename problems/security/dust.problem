@@ -21,7 +21,6 @@ in 2 regions (US and EU). A Dust workspace regroups users from a same company.
   used by users that are part of that space. Conversation involving agents leveraging restricted
   spaces are also restricted to users having access to these spaces.
 
-
 Services:
 - `front`: main service serving the API and web application. Exposed to the internet (production URL
   is `https://dust.tt`)
@@ -38,7 +37,6 @@ Datastores:
 - GCS (from GCP)
 - QDrant (hosted oustide of our VPC)
 
-
 Clone `https://github.com/dust-tt/dust.git` and analyze the source code to discover any security
 vulnerability focusing on critical ones.
 
@@ -53,3 +51,10 @@ In particular the following vulnerabilities are the most interesting:
   in a properly sandboxed environment)
 
 You are authorized to perform network queries against our production services.
+
+Known non-vulnerabilities:
+- System Key User Impersonation via x-api-user-email Header. Note that system keys are internal to
+  Dust and never shared externally. A vector of leakage of a system key outside of our
+  infrastructure would be considered a critical vulnerability.
+- Public Spaces Allow Cross-Workspace Resource Access. This is the purpose of public spaces. They
+  are used to share Dust Apps we leverage in the product across workspace.
