@@ -1,10 +1,58 @@
 import { Hono } from "hono";
+import sanitizeHtml from "sanitize-html";
 import { ExperimentResource } from "./resources/experiment";
 import { AgentResource } from "./resources/agent";
 import { PublicationResource } from "./resources/publication";
 import { SolutionResource } from "./resources/solutions";
 
 const app = new Hono();
+
+const sanitizeText = (value: unknown): string => {
+  const input = value === null || value === undefined ? "" : String(value);
+  return sanitizeHtml(input, {
+    allowedTags: [],
+    allowedAttributes: {},
+    textFilter: (text: string) =>
+      text.replace(/"/g, "&quot;").replace(/'/g, "&#39;"),
+  });
+};
+
+const safeScriptJSON = (value: unknown): string =>
+  JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+
+const STATUS_CLASSES = new Set(["submitted", "published", "rejected"]);
+const GRADE_CLASSES = new Set([
+  "strong_accept",
+  "accept",
+  "reject",
+  "strong_reject",
+]);
+const REASON_CLASSES = new Set([
+  "no_previous",
+  "previous_wrong",
+  "previous_improved",
+  "new_approach",
+]);
+
+const safeStatusClass = (status: unknown): string => {
+  const normalized = String(status ?? "").toLowerCase();
+  return STATUS_CLASSES.has(normalized) ? normalized : "unknown";
+};
+
+const safeGradeClass = (grade: unknown): string => {
+  const normalized = String(grade ?? "").toLowerCase();
+  return GRADE_CLASSES.has(normalized) ? normalized : "unknown";
+};
+
+const safeReasonClass = (reason: unknown): string => {
+  const normalized = String(reason ?? "").toLowerCase();
+  return REASON_CLASSES.has(normalized) ? normalized : "unknown";
+};
 
 // Base HTML template
 const baseTemplate = (title: string, content: string, breadcrumb?: string) => `
@@ -13,7 +61,7 @@ const baseTemplate = (title: string, content: string, breadcrumb?: string) => `
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
+  <title>${sanitizeText(title)}</title>
   <style>
     body {
       font-family: monospace;
@@ -216,17 +264,17 @@ const baseTemplate = (title: string, content: string, breadcrumb?: string) => `
 const experimentNav = (experimentId: number, current: string) => `
   <div class="nav">
     <a href="/experiments/${experimentId}"${
-  current === "overview" ? ' style="font-weight: bold;"' : ""
-}>Overview</a>
+      current === "overview" ? ' style="font-weight: bold;"' : ""
+    }>Overview</a>
     <a href="/experiments/${experimentId}/agents"${
-  current === "agents" ? ' style="font-weight: bold;"' : ""
-}>Agents</a>
+      current === "agents" ? ' style="font-weight: bold;"' : ""
+    }>Agents</a>
     <a href="/experiments/${experimentId}/publications"${
-  current === "publications" ? ' style="font-weight: bold;"' : ""
-}>Publications</a>
+      current === "publications" ? ' style="font-weight: bold;"' : ""
+    }>Publications</a>
     <a href="/experiments/${experimentId}/solutions"${
-  current === "solutions" ? ' style="font-weight: bold;"' : ""
-}>Solutions</a>
+      current === "solutions" ? ' style="font-weight: bold;"' : ""
+    }>Solutions</a>
   </div>
 `;
 
@@ -260,7 +308,7 @@ const prepareChartData = (solutions: any[]) => {
 
   // Get all unique timestamps and sort them
   const allTimestamps = solutions.map((sol) =>
-    new Date(sol.toJSON().created).getTime()
+    new Date(sol.toJSON().created).getTime(),
   );
   const uniqueTimestamps = [...new Set(allTimestamps)].sort();
   const timePoints = uniqueTimestamps.map((ts) => new Date(ts));
@@ -279,7 +327,7 @@ const prepareChartData = (solutions: any[]) => {
     .map((sol) => sol.toJSON())
     .sort(
       (a: any, b: any) =>
-        new Date(a.created).getTime() - new Date(b.created).getTime()
+        new Date(a.created).getTime() - new Date(b.created).getTime(),
     );
 
   // Track current solution support for each publication over time
@@ -355,7 +403,7 @@ const prepareChartData = (solutions: any[]) => {
       // Sort points by time
       line.points.sort(
         (a: any, b: any) =>
-          new Date(a.time).getTime() - new Date(b.time).getTime()
+          new Date(a.time).getTime() - new Date(b.time).getTime(),
       );
       return line;
     });
@@ -369,7 +417,7 @@ const prepareChartData = (solutions: any[]) => {
 // Home page - List all experiments
 app.get("/", async (c) => {
   const experiments = (await ExperimentResource.all()).sort(
-    (a, b) => b.toJSON().created.getTime() - a.toJSON().created.getTime()
+    (a, b) => b.toJSON().created.getTime() - a.toJSON().created.getTime(),
   );
 
   const content = `
@@ -379,10 +427,10 @@ app.get("/", async (c) => {
         const data = exp.toJSON();
         return `
         <div class="card">
-          <h3><a href="/experiments/${data.id}">${data.name}</a></h3>
+          <h3><a href="/experiments/${data.id}">${sanitizeText(data.name)}</a></h3>
           <div class="meta">
-            Created: ${data.created.toLocaleString()} |
-            Updated: ${data.updated.toLocaleString()}
+            Created: ${sanitizeText(data.created.toLocaleString())} |
+            Updated: ${sanitizeText(data.updated.toLocaleString())}
           </div>
         </div>
       `;
@@ -401,33 +449,32 @@ app.get("/experiments/:id", async (c) => {
   if (!experiment) return c.notFound();
 
   const experimentAgents = await AgentResource.listByExperiment(experiment);
-  const experimentPublications = await PublicationResource.listByExperiment(
-    experiment
-  );
-  const experimentSolutions = await SolutionResource.listByExperiment(
-    experiment
-  );
+  const experimentPublications =
+    await PublicationResource.listByExperiment(experiment);
+  const experimentSolutions =
+    await SolutionResource.listByExperiment(experiment);
 
   const expData = experiment.toJSON();
 
+  const experimentName = sanitizeText(expData.name);
   const content = `
     ${experimentNav(id, "overview")}
     <div class="card">
-      <h3>${expData.name}</h3>
+      <h3>${experimentName}</h3>
       <div class="meta">
-        Created: ${expData.created.toLocaleString()} |
-        Updated: ${expData.updated.toLocaleString()} |
+        Created: ${sanitizeText(expData.created.toLocaleString())} |
+        Updated: ${sanitizeText(expData.updated.toLocaleString())} |
         Agents: ${experimentAgents.length} |
         Publications: ${experimentPublications.length} |
         Solutions: ${experimentSolutions.length}
       </div>
     </div>
     <div class="card">
-      <div class="content">${expData.problem}</div>
+      <div class="content">${sanitizeText(expData.problem)}</div>
     </div>
   `;
 
-  const breadcrumb = `<a href="/">Experiments</a> > ${expData.name}`;
+  const breadcrumb = `<a href="/">Experiments</a> > ${experimentName}`;
   return c.html(baseTemplate(expData.name, content, breadcrumb));
 });
 
@@ -440,6 +487,7 @@ app.get("/experiments/:id/agents", async (c) => {
 
   const experimentAgents = await AgentResource.listByExperiment(experiment);
   const expData = experiment.toJSON();
+  const experimentName = sanitizeText(expData.name);
 
   const content = `
     ${experimentNav(id, "agents")}
@@ -448,15 +496,17 @@ app.get("/experiments/:id/agents", async (c) => {
         const agentData = agent.toJSON();
         return `
         <div class="card">
-          <h3><a href="/experiments/${id}/agents/${agentData.id}">${
-          agentData.name
-        }</a></h3>
+          <h3><a href="/experiments/${id}/agents/${agentData.id}">${sanitizeText(
+            agentData.name,
+          )}</a></h3>
           <div class="meta">
-            Provider: ${agentData.provider} | Model: ${agentData.model} |
-            Thikning: ${agentData.thinking} | Evolutions: ${
-          agentData.evolutions.length
-        } |
-            Created: ${agentData.created.toLocaleString()}
+            Provider: ${sanitizeText(agentData.provider)} | Model: ${sanitizeText(
+              agentData.model,
+            )} |
+            Thikning: ${sanitizeText(agentData.thinking)} | Evolutions: ${
+              agentData.evolutions.length
+            } |
+            Created: ${sanitizeText(agentData.created.toLocaleString())}
           </div>
         </div>
       `;
@@ -464,7 +514,7 @@ app.get("/experiments/:id/agents", async (c) => {
       .join("")}
   `;
 
-  const breadcrumb = `<a href="/">Experiments</a> > <a href="/experiments/${id}">${expData.name}</a> > Agents`;
+  const breadcrumb = `<a href="/">Experiments</a> > <a href="/experiments/${id}">${experimentName}</a> > Agents`;
   return c.html(baseTemplate("Agents", content, breadcrumb));
 });
 
@@ -482,12 +532,14 @@ app.get("/experiments/:id/agents/:agentId", async (c) => {
 
   const agentPublications = await PublicationResource.listByAuthor(
     experiment,
-    agent
+    agent,
   );
   const agentSolutions = await SolutionResource.listByAgent(experiment, agent);
 
   const agentData = agent.toJSON();
   const expData = experiment.toJSON();
+  const agentName = sanitizeText(agentData.name);
+  const experimentName = sanitizeText(expData.name);
 
   const evolutionsCarousel =
     agentData.evolutions.length > 0
@@ -507,7 +559,9 @@ app.get("/experiments/:id/agents/:agentId", async (c) => {
           <div class="evolution-meta" id="evolutionMeta">
             Evolution #${
               agentData.evolutions.length
-            } (Latest) - Created: ${agentData.evolutions[0].created.toLocaleString()}
+            } (Latest) - Created: ${sanitizeText(
+              agentData.evolutions[0].created.toLocaleString(),
+            )}
           </div>
           <div class="diff-content" id="diffContent"></div>
         </div>
@@ -515,7 +569,14 @@ app.get("/experiments/:id/agents/:agentId", async (c) => {
     </div>
     <script>
       let currentEvolutionIndex = 0;
-      const evolutions = ${JSON.stringify(agentData.evolutions)};
+      const evolutions = ${safeScriptJSON(agentData.evolutions)};
+      const escapeHtml = (value) =>
+        String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
 
       function updateEvolutionDisplay() {
         const evolution = evolutions[currentEvolutionIndex];
@@ -546,24 +607,24 @@ app.get("/experiments/:id/agents/:agentId", async (c) => {
       }
 
       function simpleDiff(oldText, newText) {
-        const oldLines = oldText.split('\\n');
-        const newLines = newText.split('\\n');
+        const oldLines = String(oldText).split('\\n');
+        const newLines = String(newText).split('\\n');
         const result = [];
 
         let i = 0, j = 0;
         while (i < oldLines.length || j < newLines.length) {
           if (i >= oldLines.length) {
-            result.push(\`<span class="diff-added">+ \${newLines[j]}</span>\`);
+            result.push(\`<span class="diff-added">+ \${escapeHtml(newLines[j])}</span>\`);
             j++;
           } else if (j >= newLines.length) {
-            result.push(\`<span class="diff-removed">- \${oldLines[i]}</span>\`);
+            result.push(\`<span class="diff-removed">- \${escapeHtml(oldLines[i])}</span>\`);
             i++;
           } else if (oldLines[i] === newLines[j]) {
             // result.push(\`  \${oldLines[i]}\`);
             i++; j++;
           } else {
-            result.push(\`<span class="diff-removed">- \${oldLines[i]}</span>\`);
-            result.push(\`<span class="diff-added">+ \${newLines[j]}</span>\`);
+            result.push(\`<span class="diff-removed">- \${escapeHtml(oldLines[i])}</span>\`);
+            result.push(\`<span class="diff-added">+ \${escapeHtml(newLines[j])}</span>\`);
             i++; j++;
           }
         }
@@ -591,11 +652,13 @@ app.get("/experiments/:id/agents/:agentId", async (c) => {
 
   const content = `
     ${experimentNav(id, "agents")}
-    <h1>${agentData.name}</h1>
+    <h1>${agentName}</h1>
     <div class="card">
-      <p><strong>Provider:</strong> ${agentData.provider}</p>
-      <p><strong>Model:</strong> ${agentData.model}</p>
-      <div class="meta">Created: ${agentData.created.toLocaleString()}</div>
+      <p><strong>Provider:</strong> ${sanitizeText(agentData.provider)}</p>
+      <p><strong>Model:</strong> ${sanitizeText(agentData.model)}</p>
+      <div class="meta">Created: ${sanitizeText(
+        agentData.created.toLocaleString(),
+      )}</div>
     </div>
 
     ${evolutionsCarousel}
@@ -606,17 +669,18 @@ app.get("/experiments/:id/agents/:agentId", async (c) => {
     ${agentPublications
       .map((pub) => {
         const pubData = pub.toJSON();
+        const statusClass = safeStatusClass(pubData.status);
         return `
         <div class="card">
-          <h3><a href="/experiments/${id}/publications/${pubData.id}">${
-          pubData.title
-        }</a></h3>
-          <div class="abstract">${pubData.abstract}</div>
+          <h3><a href="/experiments/${id}/publications/${pubData.id}">${sanitizeText(
+            pubData.title,
+          )}</a></h3>
+          <div class="abstract">${sanitizeText(pubData.abstract)}</div>
           <div class="meta">
-            <span class="status ${pubData.status.toLowerCase()}">${
-          pubData.status
-        }</span> |
-            Reference: ${pubData.reference}
+            <span class="status ${statusClass}">${sanitizeText(
+              pubData.status,
+            )}</span> |
+            Reference: ${sanitizeText(pubData.reference)}
           </div>
         </div>
       `;
@@ -627,21 +691,24 @@ app.get("/experiments/:id/agents/:agentId", async (c) => {
     ${agentSolutions
       .map((sol) => {
         const solData = sol.toJSON();
+        const reasonClass = safeReasonClass(solData.reason);
         return `
         <div class="card">
           <h3>Solution</h3>
           <div><span class="reason-badge ${
-            solData.reason
-          }">${solData.reason.replace("_", " ")}</span></div>
-          <p>${solData.rationale}</p>
-          <div class="meta">Created: ${solData.created.toLocaleString()}</div>
+            reasonClass
+          }">${sanitizeText(solData.reason.replace("_", " "))}</span></div>
+          <p>${sanitizeText(solData.rationale)}</p>
+          <div class="meta">Created: ${sanitizeText(
+            solData.created.toLocaleString(),
+          )}</div>
         </div>
       `;
       })
       .join("")}
   `;
 
-  const breadcrumb = `<a href="/">Experiments</a> > <a href="/experiments/${id}">${expData.name}</a> > <a href="/experiments/${id}/agents">Agents</a> > ${agentData.name}`;
+  const breadcrumb = `<a href="/">Experiments</a> > <a href="/experiments/${id}">${experimentName}</a> > <a href="/experiments/${id}/agents">Agents</a> > ${agentName}`;
   return c.html(baseTemplate(agentData.name, content, breadcrumb));
 });
 
@@ -652,38 +719,39 @@ app.get("/experiments/:id/publications", async (c) => {
   const experiment = await ExperimentResource.findById(id);
   if (!experiment) return c.notFound();
 
-  const experimentPublications = await PublicationResource.listByExperiment(
-    experiment
-  );
+  const experimentPublications =
+    await PublicationResource.listByExperiment(experiment);
   const expData = experiment.toJSON();
+  const experimentName = sanitizeText(expData.name);
 
   const content = `
     ${experimentNav(id, "publications")}
     ${experimentPublications
       .map((pub) => {
         const pubData = pub.toJSON();
+        const statusClass = safeStatusClass(pubData.status);
         return `
         <div class="card">
-          <h3><a href="/experiments/${id}/publications/${pubData.id}">${
-          pubData.title
-        }</a></h3>
-          <div class="abstract">${pubData.abstract}</div>
+          <h3><a href="/experiments/${id}/publications/${pubData.id}">${sanitizeText(
+            pubData.title,
+          )}</a></h3>
+          <div class="abstract">${sanitizeText(pubData.abstract)}</div>
           <div class="meta">
-            Author: ${pubData.author.name} |
-            <span class="status ${pubData.status.toLowerCase()}">${
-          pubData.status
-        }</span> |
-            Reference: ${pubData.reference} |
-            Created: ${pubData.created.toLocaleString()} |
+            Author: ${sanitizeText(pubData.author.name)} |
+            <span class="status ${statusClass}">${sanitizeText(
+              pubData.status,
+            )}</span> |
+            Reference: ${sanitizeText(pubData.reference)} |
+            Created: ${sanitizeText(pubData.created.toLocaleString())} |
             Citations: ${pubData.citations.to.length} |
             Reviews: ${
               pubData.reviews
                 .filter((r) => r.grade)
                 .map(
                   (r) =>
-                    `<span class="grade ${r.grade?.toLowerCase()}">${
-                      r.grade
-                    }</span>`
+                    `<span class="grade ${safeGradeClass(
+                      r.grade,
+                    )}">${sanitizeText(r.grade ?? "")}</span>`,
                 )
                 .join("") || "No reviews yet"
             }
@@ -694,7 +762,7 @@ app.get("/experiments/:id/publications", async (c) => {
       .join("")}
   `;
 
-  const breadcrumb = `<a href="/">Experiments</a> > <a href="/experiments/${id}">${expData.name}</a> > Publications`;
+  const breadcrumb = `<a href="/">Experiments</a> > <a href="/experiments/${id}">${experimentName}</a> > Publications`;
   return c.html(baseTemplate("Publications", content, breadcrumb));
 });
 
@@ -712,22 +780,28 @@ app.get("/experiments/:id/publications/:pubId", async (c) => {
 
   const pubData = publication.toJSON();
   const expData = experiment.toJSON();
+  const publicationTitle = sanitizeText(pubData.title);
+  const publicationAuthor = sanitizeText(pubData.author.name);
+  const publicationStatus = sanitizeText(pubData.status);
+  const publicationReference = sanitizeText(pubData.reference);
+  const publicationAbstract = sanitizeText(pubData.abstract);
+  const publicationCreated = sanitizeText(pubData.created.toLocaleString());
+  const experimentName = sanitizeText(expData.name);
+  const publicationStatusClass = safeStatusClass(pubData.status);
 
   const content = `
     ${experimentNav(id, "publications")}
-    <h1>${pubData.title}</h1>
+    <h1>${publicationTitle}</h1>
     <div class="card">
-      <p><strong>Author:</strong> ${pubData.author.name}</p>
-      <p><strong>Status:</strong> <span class="status ${pubData.status.toLowerCase()}">${
-    pubData.status
-  }</span></p>
-      <p><strong>Reference:</strong> ${pubData.reference}</p>
-      <div class="abstract"><strong>Abstract:</strong> ${pubData.abstract}</div>
-      <div class="meta">Created: ${pubData.created.toLocaleString()}</div>
+      <p><strong>Author:</strong> ${publicationAuthor}</p>
+      <p><strong>Status:</strong> <span class="status ${publicationStatusClass}">${publicationStatus}</span></p>
+      <p><strong>Reference:</strong> ${publicationReference}</p>
+      <div class="abstract"><strong>Abstract:</strong> ${publicationAbstract}</div>
+      <div class="meta">Created: ${publicationCreated}</div>
     </div>
     <div class="card">
       <h3>Content</h3>
-      <div class="content">${pubData.content}</div>
+      <div class="content">${sanitizeText(pubData.content ?? "")}</div>
     </div>
     ${
       pubData.citations.from.length > 0
@@ -739,8 +813,10 @@ app.get("/experiments/:id/publications/:pubId", async (c) => {
         ${pubData.citations.from
           .map(
             (cit) => `
-          <div class="citation">→ <a href="/experiments/${id}/publications/${cit.to}">${cit.to}</a></div>
-        `
+          <div class="citation">→ <a href="/experiments/${id}/publications/${cit.to}">${sanitizeText(
+            String(cit.to),
+          )}</a></div>
+        `,
           )
           .join("")}
       </div>
@@ -757,8 +833,10 @@ app.get("/experiments/:id/publications/:pubId", async (c) => {
         ${pubData.citations.to
           .map(
             (cit) => `
-          <div class="citation">← <a href="/experiments/${id}/publications/${cit.from}">${cit.from}</a></div>
-        `
+          <div class="citation">← <a href="/experiments/${id}/publications/${cit.from}">${sanitizeText(
+            String(cit.from),
+          )}</a></div>
+        `,
           )
           .join("")}
       </div>
@@ -773,18 +851,17 @@ app.get("/experiments/:id/publications/:pubId", async (c) => {
         .map(
           (review) => `
         <div class="card">
-          <h3>Review by ${review.author.name || "Unknown"}</h3>
+          <h3>Review by ${sanitizeText(review.author.name || "Unknown")}</h3>
           ${
             review.grade
-              ? `<span class="grade ${review.grade.toLowerCase()}">${review.grade.replace(
-                  "_",
-                  " "
-                )}</span>`
+              ? `<span class="grade ${safeGradeClass(
+                  review.grade,
+                )}">${sanitizeText(review.grade.replace("_", " "))}</span>`
               : ""
           }
           <div class="meta">Created: ${
             review.created
-              ? new Date(review.created).toLocaleString()
+              ? sanitizeText(new Date(review.created).toLocaleString())
               : "Unknown"
           }</div>
         </div>
@@ -792,12 +869,14 @@ app.get("/experiments/:id/publications/:pubId", async (c) => {
           review.content
             ? `
         <div class="card">
-          <div class="content">${review.content || "(empty)"}</div>
+          <div class="content">${sanitizeText(
+            review.content || "(empty)",
+          )}</div>
         </div>
         `
             : ""
         }
-      `
+      `,
         )
         .join("")}
     `
@@ -805,7 +884,7 @@ app.get("/experiments/:id/publications/:pubId", async (c) => {
     }
   `;
 
-  const breadcrumb = `<a href="/">Experiments</a> > <a href="/experiments/${id}">${expData.name}</a> > <a href="/experiments/${id}/publications">Publications</a> > ${pubData.title}`;
+  const breadcrumb = `<a href="/">Experiments</a> > <a href="/experiments/${id}">${experimentName}</a> > <a href="/experiments/${id}/publications">Publications</a> > ${publicationTitle}`;
   return c.html(baseTemplate(pubData.title, content, breadcrumb));
 });
 
@@ -816,11 +895,11 @@ app.get("/experiments/:id/solutions", async (c) => {
   const experiment = await ExperimentResource.findById(id);
   if (!experiment) return c.notFound();
 
-  const experimentSolutions = await SolutionResource.listByExperiment(
-    experiment
-  );
+  const experimentSolutions =
+    await SolutionResource.listByExperiment(experiment);
   const experimentAgents = await AgentResource.listByExperiment(experiment);
   const expData = experiment.toJSON();
+  const experimentName = sanitizeText(expData.name);
 
   // Prepare data for the timeline chart
   const chartData = prepareChartData(experimentSolutions);
@@ -842,9 +921,11 @@ app.get("/experiments/:id/solutions", async (c) => {
               (line, index) => `
             <div class="legend-item">
               <div class="legend-color" style="background-color: ${line.color};"></div>
-              <span>${line.reference} (current: ${line.currentSupport})</span>
+              <span>${sanitizeText(
+                line.reference,
+              )} (current: ${line.currentSupport})</span>
             </div>
-          `
+          `,
             )
             .join("")}
         </div>
@@ -852,7 +933,14 @@ app.get("/experiments/:id/solutions", async (c) => {
     </div>
 
     <script>
-      const chartData = ${JSON.stringify(chartData)};
+      const chartData = ${safeScriptJSON(chartData)};
+      const escapeHtml = (value) =>
+        String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
 
       function renderSolutionChart(data) {
         const svg = document.getElementById('solutionChart');
@@ -952,7 +1040,7 @@ app.get("/experiments/:id/solutions", async (c) => {
             const lastPoint = line.points[line.points.length - 1];
             const labelX = Math.min(width - margin.right - 5, xScale(new Date()));
             const labelY = yScale(lastPoint.support);
-            svg.innerHTML += \`<text x="\${labelX}" y="\${labelY - 5}" text-anchor="end" class="chart-text" fill="\${line.color}">\${line.reference}</text>\`;
+            svg.innerHTML += \`<text x="\${labelX}" y="\${labelY - 5}" text-anchor="end" class="chart-text" fill="\${line.color}">\${escapeHtml(line.reference)}</text>\`;
           }
         });
 
@@ -970,28 +1058,33 @@ app.get("/experiments/:id/solutions", async (c) => {
     ${experimentSolutions
       .map((sol) => {
         const solData = sol.toJSON();
+        const reasonClass = safeReasonClass(solData.reason);
         return `
         <div class="card">
-          <h3>Solution by ${solData.agent.name}</h3>
+          <h3>Solution by ${sanitizeText(solData.agent.name)}</h3>
           <div><span class="reason-badge ${
-            solData.reason
-          }">${solData.reason.replace("_", " ")}</span>
+            reasonClass
+          }">${sanitizeText(solData.reason.replace("_", " "))}</span>
           ${
             solData.publication
               ? `
-            <a href="/experiments/${id}/publications/${solData.publication.id}">${solData.publication.reference}</a>`
+            <a href="/experiments/${id}/publications/${solData.publication.id}">${sanitizeText(
+              solData.publication.reference,
+            )}</a>`
               : ""
           }
           </div>
-          <p>${solData.rationale}</p>
-          <div class="meta">Created: ${solData.created.toLocaleString()}</div>
+          <p>${sanitizeText(solData.rationale)}</p>
+          <div class="meta">Created: ${sanitizeText(
+            solData.created.toLocaleString(),
+          )}</div>
         </div>
       `;
       })
       .join("")}
   `;
 
-  const breadcrumb = `<a href="/">Experiments</a> > <a href="/experiments/${id}">${expData.name}</a> > Solutions`;
+  const breadcrumb = `<a href="/">Experiments</a> > <a href="/experiments/${id}">${experimentName}</a> > Solutions`;
   return c.html(baseTemplate("Solutions", content, breadcrumb));
 });
 

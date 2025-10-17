@@ -58,3 +58,7 @@ Known non-vulnerabilities:
   infrastructure would be considered a critical vulnerability.
 - Public Spaces Allow Cross-Workspace Resource Access. This is the purpose of public spaces. They
   are used to share Dust Apps we leverage in the product across workspace.
+
+Already known vulnerabilities (consider duplicate):
+- SSRF Vulnerability in `processAndStoreFromUrl` due to weak validation of MCP server controlled
+  URL.
