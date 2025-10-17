@@ -67,6 +67,9 @@ Known non-vulnerabilities:
 - The possibility of a Group being associated to multiple Spaces (the Workspace group is associated
   with both the Company Space and the Conversations Space as an example) is not a vulnerability.
   It's in general not possible in the product except for the example give here.
+- Public Conversation APIs tool validation bypass via skipToolsValidation. This is an expected
+  product behavior as the API caller has acces anyway to the tool validation endpoint and can
+  control validation. This is therefore a convenience feature.
 
 Already known vulnerabilities (consider duplicate):
 - SSRF Vulnerability in `processAndStoreFromUrl` due to weak validation of MCP server controlled

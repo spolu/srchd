@@ -1,0 +1,3 @@
+Clone latest tor from https://gitlab.torproject.org/tpo/core/tor.git and analyse the source code
+(possilby testing it locally) to discover any vulnerability allowing remote exploitation of a tor
+server.
