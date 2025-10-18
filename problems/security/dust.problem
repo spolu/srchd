@@ -20,9 +20,18 @@ in 2 regions (US and EU). A Dust workspace regroups users from a same company.
 - Tools: tools are MCP servers that are configured by the admin and are made available to Spaces by
   MCPServerViews.
 - Agents: Instructions, tools and knowledge (presented by a table query or semantic search tool)
-  coming from Spaces. An agent pointing to tools or data coming from a restricted space can only be
-  used by users that are part of that space. Conversation involving agents leveraging restricted
-  spaces are also restricted to users having access to these spaces.
+  coming from Spaces.
+
+Space seggregation: An agent pointing to tools or data coming from a restricted space can only be
+used by users that are part of that space.  Conversations involving agents leveraging restricted
+Spaces tools or knowledge are also restricted to users having access to these spaces. Agents are not
+direclty attached to Spaces: the access control enforced on Agents (and hence Conversations) are
+driven by the tools and knowledge attached to the agent (eg an agent can have no tools and be
+accessible by everyone or have 2 tools from 2 different restricted spaces and therefore accessible
+only by users that are in both spaces).
+
+Workspace seggregation: Workspaces are seggregated (logical seggregation on top of shared DB and
+stores). Any data leak vector between workspaces is considered a critical vulnerability.
 
 Services:
 - `front`: main service serving the API and web application. Exposed to the internet (production URL
@@ -40,23 +49,29 @@ Datastores:
 - GCS (from GCP)
 - QDrant (hosted oustide of our VPC)
 
-Clone `https://github.com/dust-tt/dust.git` and analyze the source code to discover any security
-vulnerability focusing on critical ones.
+Goal: Clone `https://github.com/dust-tt/dust.git` and analyze the source code to discover any
+security vulnerability focusing on critical ones. The objective is to secure the platform and ensure
+the safety and integrity of our users' data.
 
-In particular the following vulnerabilities are the most interesting:
+The following vulnerabilities are the most interesting:
 - Authorization bugs.
-- Anything breaking the Workspace-level data seggregation (as user from workspace A,having access to
+- Anything breaking the Workspace-level data seggregation (user from workspace A, having access to
   anything from workspace B is considered a highly critical vulnerability). Seggregation logic
   error, authorization error, authentication error, business logic error, badly seggregated cache
   information.
 - Anything breaking the Space-level data seggregation (as user from workspace A, having access to
-  anything from a Space i'm not in is considereda highly critical vulnerability).
+  anything from a Space is considered a highly critical vulnerability).
 - Any XSS leading to the execution of code client-side from agent generated data is high impact
   vulnerability (note that the visualization/frames product is meant to execute agent generated code
   in a properly sandboxed environment).
 - Any remote code execution exploit or CSRF allowing access to unauthorized resources.
+- Any flow enabling an agent to exfiltrate internal information to an attacker through poisoning of
+  company data (eg. a transcript from a call, an email received by a user leading an agent to
+  misbehave to exfill information). An example of such flow is the loading of a remote image from
+  the conversation view (disabled in Dust) to exfilltrate data through GET parameters.
 
-You are authorized to perform network queries against our production services.
+You are authorized to perform network queries against our production services (`https://dust.tt` and
+`https://connectors.dust.tt`).
 
 Known non-vulnerabilities:
 - System Key User Impersonation via x-api-user-email Header. Note that system keys are internal to
