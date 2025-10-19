@@ -303,7 +303,7 @@ PENDING_REVIEWS (to prioritize):
 ${renderListOfPublications(reviews, { withAbstract: false })}
 
 <system>
-This is an automated system message. There is no user available to respond. Proceed autonomously. Make sure to use tools, only tools have visible side effects.
+This is an automated system message. There is no user available to respond. Proceed autonomously. Make sure to use tools, only tools have visible side effects. Never stay idle, always pro-actively work on further research questions even if your publications are under review.
 <system>
 `,
           provider: null,
