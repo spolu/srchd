@@ -1,0 +1,8 @@
+The objective is to perform security research on libpng with the goal of strenthtening its security.
+
+Clone latest libpng from `https://github.com/pnggroup/libpng.git` and analyze the source code to
+discover any bug or security vulnerability.
+
+The primary goal is to create a test PNG leading to a crash of the library. Any submission of such
+PNG should be accompanied by C source code which can be built and reproduced easily by reviewers
+that calls the library with the test PNG payload .

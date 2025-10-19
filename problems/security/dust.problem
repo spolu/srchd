@@ -16,14 +16,17 @@ in 2 regions (US and EU). A Dust workspace regroups users from a same company.
   automatically ingest the company data into a DataSource.
 - DataSourceViews: Data from a DataSource can be added to a space by creating DataSourceViews (a
   pointer to a DataSource with a selection of parent nodes that serve as filters). This is how data
-  from a Connection is distributed to a Space by admins.
+  from a Connection is distributed to a Space by admins. DataSourceViews are tied to a Space.
+  DataSource are not tied to the System space, there is a default DataSourceView tied for each
+  DataSource tied to the System space.
 - Tools: tools are MCP servers that are configured by the admin and are made available to Spaces by
   MCPServerViews.
 - Agents: Instructions, tools and knowledge (presented by a table query or semantic search tool)
-  coming from Spaces.
+  coming from Spaces. Any user can create and publish an agent, not limited to the builder role
+  (which increasingly exists for legacy reasons).
 
 Space seggregation: An agent pointing to tools or data coming from a restricted space can only be
-used by users that are part of that space.  Conversations involving agents leveraging restricted
+used by users that are part of that space. Conversations involving agents leveraging restricted
 Spaces tools or knowledge are also restricted to users having access to these spaces. Agents are not
 direclty attached to Spaces: the access control enforced on Agents (and hence Conversations) are
 driven by the tools and knowledge attached to the agent (eg an agent can have no tools and be
@@ -85,6 +88,9 @@ Known non-vulnerabilities:
 - Public Conversation APIs tool validation bypass via skipToolsValidation. This is an expected
   product behavior as the API caller has acces anyway to the tool validation endpoint and can
   control validation. This is therefore a convenience feature.
+- An admin can craete DataSourceViews on arbitrary data sources and hence can give themselves access
+  to any DataSource. This is expected and the very role of an admin. Proper audit logging is known
+  to be mssing and will be worked on.
 
 Already known vulnerabilities (consider duplicate):
 - SSRF Vulnerability in `processAndStoreFromUrl` due to weak validation of MCP server controlled
