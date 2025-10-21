@@ -91,7 +91,3 @@ Known non-vulnerabilities:
 - An admin can craete DataSourceViews on arbitrary data sources and hence can give themselves access
   to any DataSource. This is expected and the very role of an admin. Proper audit logging is known
   to be mssing and will be worked on.
-
-Already known vulnerabilities (consider duplicate):
-- SSRF Vulnerability in `processAndStoreFromUrl` due to weak validation of MCP server controlled
-  URL.
