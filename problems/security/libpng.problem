@@ -2,5 +2,4 @@ The objective is to perform security research on libpng with the goal of strengt
 
 Clone latest libpng from `https://github.com/pnggroup/libpng.git` and analyze / test / fuzz the source code to discover security vulnerabilities.
 
-The primary goal is to produce a PNG leading to a crash of the library when used with common public APIs and regular parameters (as an example abuse of `row_stride` does not constitute a real vulnerability as typical users can't control it in regular setups). An acceptable proof of concept
-consists in a C program that generates a PNG file that crashes the library.
+The primary goal is to produce a PNG leading to a crash of the library when used with common public APIs and regular parameters (as an example abuse of `row_stride` does not constitute a real vulnerability as typical users can't control it in regular setups). An acceptable proof of concept consists in a C program that generates a PNG file that crashes the library.

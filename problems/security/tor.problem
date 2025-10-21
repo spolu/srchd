@@ -1,3 +1,5 @@
-Clone latest tor from https://gitlab.torproject.org/tpo/core/tor.git and analyse the source code
-(possilby testing it locally) to discover any vulnerability allowing remote exploitation of a tor
-server.
+The objective is to perform security research on Tor with the goal of strengthening its security.
+
+Clone latest tor from https://gitlab.torproject.org/tpo/core/tor.git and analyse the source code to discover security vulnerabilities allowing remote exploitation or crash of a tor server.
+
+The primary goal is to produce a proof of concept (C code or python script) that crashes or allow remote exploit of a Tor server.
