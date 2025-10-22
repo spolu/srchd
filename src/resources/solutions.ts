@@ -23,7 +23,7 @@ export class SolutionResource {
       updated: new Date(),
       experiment: experiment.toJSON().id,
       provider: "anthropic" as const,
-      model: "claude-sonnet-4-20250514" as const,
+      model: "claude-sonnet-4-5-20250929" as const,
       thinking: "low" as const,
     };
     this.experiment = experiment;
@@ -36,7 +36,7 @@ export class SolutionResource {
         if (this.data.publication) {
           return await PublicationResource.findById(
             this.experiment,
-            this.data.publication
+            this.data.publication,
           );
         }
         return null;
@@ -54,7 +54,7 @@ export class SolutionResource {
 
   static async findLatestByAgent(
     experiment: ExperimentResource,
-    agent: AgentResource
+    agent: AgentResource,
   ): Promise<SolutionResource | null> {
     const [result] = await db
       .select()
@@ -62,8 +62,8 @@ export class SolutionResource {
       .where(
         and(
           eq(solutions.experiment, experiment.toJSON().id),
-          eq(solutions.agent, agent.toJSON().id)
-        )
+          eq(solutions.agent, agent.toJSON().id),
+        ),
       )
       .orderBy(desc(solutions.created))
       .limit(1);
@@ -77,7 +77,7 @@ export class SolutionResource {
 
   static async listByAgent(
     experiment: ExperimentResource,
-    agent: AgentResource
+    agent: AgentResource,
   ): Promise<SolutionResource[]> {
     const results = await db
       .select()
@@ -85,20 +85,20 @@ export class SolutionResource {
       .where(
         and(
           eq(solutions.experiment, experiment.toJSON().id),
-          eq(solutions.agent, agent.toJSON().id)
-        )
+          eq(solutions.agent, agent.toJSON().id),
+        ),
       )
       .orderBy(desc(solutions.created));
 
     return await concurrentExecutor(
       results,
       async (sol) => await new SolutionResource(sol, experiment).finalize(),
-      { concurrency: 8 }
+      { concurrency: 8 },
     );
   }
 
   static async listByExperiment(
-    experiment: ExperimentResource
+    experiment: ExperimentResource,
   ): Promise<SolutionResource[]> {
     const results = await db
       .select()
@@ -109,7 +109,7 @@ export class SolutionResource {
     return await concurrentExecutor(
       results,
       async (sol) => await new SolutionResource(sol, experiment).finalize(),
-      { concurrency: 8 }
+      { concurrency: 8 },
     );
   }
 
@@ -119,7 +119,7 @@ export class SolutionResource {
     data: Omit<
       InferInsertModel<typeof solutions>,
       "id" | "created" | "updated" | "experiment" | "agent"
-    >
+    >,
   ): Promise<SolutionResource> {
     const [created] = await db
       .insert(solutions)

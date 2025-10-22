@@ -332,4 +332,18 @@ export class OpenAIModel extends BaseModel {
 
     return new Ok(tokenCount);
   }
+
+  maxTokens(): number {
+    switch (this.model) {
+      case "gpt-5":
+      case "gpt-5-mini":
+      case "gpt-5-nano":
+      case "gpt-5-codex":
+        return 400000 - 128000;
+      case "gpt-4.1":
+        return 1047576 - 32768;
+      default:
+        assertNever(this.model);
+    }
+  }
 }

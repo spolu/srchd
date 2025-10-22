@@ -36,7 +36,7 @@ export class GeminiModel extends BaseModel {
 
   constructor(
     config: ModelConfig,
-    model: GeminiModels = "gemini-2.5-flash-lite"
+    model: GeminiModels = "gemini-2.5-flash-lite",
   ) {
     super(config);
     this.client = new GoogleGenAI({});
@@ -89,7 +89,7 @@ export class GeminiModel extends BaseModel {
               default:
                 assertNever(content);
             }
-          })
+          }),
         ),
       };
     });
@@ -101,7 +101,7 @@ export class GeminiModel extends BaseModel {
     messages: Message[],
     prompt: string,
     toolChoice: ToolChoice,
-    tools: Tool[]
+    tools: Tool[],
   ): Promise<Result<Message, SrchdError>> {
     try {
       const response = await this.client.models.generateContent({
@@ -151,8 +151,8 @@ export class GeminiModel extends BaseModel {
           new SrchdError(
             "model_error",
             "Gemini model returned no candidates",
-            null
-          )
+            null,
+          ),
         );
       }
       const candidate = response.candidates[0];
@@ -212,7 +212,7 @@ export class GeminiModel extends BaseModel {
               return c;
             }
             return null;
-          })
+          }),
         ),
       });
     } catch (error) {
@@ -220,8 +220,8 @@ export class GeminiModel extends BaseModel {
         new SrchdError(
           "model_error",
           "Failed to run model",
-          normalizeError(error)
-        )
+          normalizeError(error),
+        ),
       );
     }
   }
@@ -230,7 +230,7 @@ export class GeminiModel extends BaseModel {
     messages: Message[],
     prompt: string,
     toolChoice: ToolChoice,
-    tools: Tool[]
+    tools: Tool[],
   ): Promise<Result<number, SrchdError>> {
     try {
       const response = await this.client.models.countTokens({
@@ -252,8 +252,8 @@ export class GeminiModel extends BaseModel {
           new SrchdError(
             "model_error",
             "Gemini model returned no token counts",
-            null
-          )
+            null,
+          ),
         );
       }
 
@@ -263,9 +263,20 @@ export class GeminiModel extends BaseModel {
         new SrchdError(
           "model_error",
           "Failed to count tokens",
-          normalizeError(error)
-        )
+          normalizeError(error),
+        ),
       );
+    }
+  }
+
+  maxTokens(): number {
+    switch (this.model) {
+      case "gemini-2.5-pro":
+      case "gemini-2.5-flash":
+      case "gemini-2.5-flash-lite":
+        return 1048576 - 65536;
+      default:
+        assertNever(this.model);
     }
   }
 }

@@ -17,13 +17,11 @@ const DEFAULT_LOW_THINKING_TOKENS = 4096;
 const DEFAULT_HIGH_THINKING_TOKENS = 8192;
 
 export type AnthropicModels =
-  | "claude-sonnet-4-20250514"
   | "claude-opus-4-1-20250805"
   | "claude-sonnet-4-5-20250929"
   | "claude-haiku-4-5-20251001";
 export function isAnthropicModel(model: string): model is AnthropicModels {
   return [
-    "claude-sonnet-4-20250514",
     "claude-opus-4-1-20250805",
     "claude-sonnet-4-5-20250929",
     "claude-haiku-4-5-20251001",
@@ -36,7 +34,7 @@ export class AnthropicModel extends BaseModel {
 
   constructor(
     config: ModelConfig,
-    model: AnthropicModels = "claude-sonnet-4-20250514",
+    model: AnthropicModels = "claude-sonnet-4-5-20250929",
   ) {
     super(config);
     this.client = new Anthropic();
@@ -334,6 +332,17 @@ export class AnthropicModel extends BaseModel {
           normalizeError(error),
         ),
       );
+    }
+  }
+
+  maxTokens(): number {
+    switch (this.model) {
+      case "claude-opus-4-1-20250805":
+      case "claude-sonnet-4-5-20250929":
+      case "claude-haiku-4-5-20251001":
+        return 200000 - 64000;
+      default:
+        assertNever(this.model);
     }
   }
 }

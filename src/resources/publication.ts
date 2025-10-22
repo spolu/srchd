@@ -53,7 +53,7 @@ export class PublicationResource {
       updated: new Date(),
       experiment: experiment.toJSON().id,
       provider: "anthropic" as const,
-      model: "claude-sonnet-4-20250514" as const,
+      model: "claude-sonnet-4-5-20250929" as const,
       thinking: "low" as const,
     };
     this.experiment = experiment;
@@ -74,7 +74,7 @@ export class PublicationResource {
       .where(eq(reviews.publication, this.data.id));
     const authorQuery = AgentResource.findById(
       this.experiment,
-      this.data.author
+      this.data.author,
     );
 
     const [fromCitationsResults, toCitationsResults, reviewsResults, author] =
@@ -93,7 +93,7 @@ export class PublicationResource {
       async (review) => {
         const reviewAgent = await AgentResource.findById(
           this.experiment,
-          review.author
+          review.author,
         );
         assert(reviewAgent);
         return {
@@ -101,7 +101,7 @@ export class PublicationResource {
           author: reviewAgent.toJSON(),
         };
       },
-      { concurrency: 8 }
+      { concurrency: 8 },
     );
 
     if (author) {
@@ -112,7 +112,7 @@ export class PublicationResource {
 
   static async findById(
     experiment: ExperimentResource,
-    id: number
+    id: number,
   ): Promise<PublicationResource | null> {
     const [result] = await db
       .select()
@@ -132,7 +132,7 @@ export class PublicationResource {
       status: "PUBLISHED" | "SUBMITTED" | "REJECTED";
       limit: number;
       offset: number;
-    }
+    },
   ): Promise<PublicationResource[]> {
     const { order, limit, offset } = options;
 
@@ -146,8 +146,8 @@ export class PublicationResource {
       .where(
         and(
           eq(publications.experiment, experiment.toJSON().id),
-          eq(publications.status, "PUBLISHED")
-        )
+          eq(publications.status, "PUBLISHED"),
+        ),
       )
       .groupBy(publications.id)
       .limit(limit)
@@ -172,13 +172,13 @@ export class PublicationResource {
       async (data) => {
         return await new PublicationResource(data, experiment).finalize();
       },
-      { concurrency: 8 }
+      { concurrency: 8 },
     );
   }
 
   static async listByExperimentAndReviewRequested(
     experiment: ExperimentResource,
-    reviewer: AgentResource
+    reviewer: AgentResource,
   ): Promise<PublicationResource[]> {
     const results = await db
       .select()
@@ -187,8 +187,8 @@ export class PublicationResource {
         and(
           eq(reviews.experiment, experiment.toJSON().id),
           eq(reviews.author, reviewer.toJSON().id),
-          isNull(reviews.grade)
-        )
+          isNull(reviews.grade),
+        ),
       );
 
     if (results.length === 0) return [];
@@ -200,8 +200,8 @@ export class PublicationResource {
       .where(
         and(
           eq(publications.experiment, experiment.toJSON().id),
-          inArray(publications.id, publicationIds)
-        )
+          inArray(publications.id, publicationIds),
+        ),
       );
 
     const publicationsResults = await publicationsQuery;
@@ -211,13 +211,13 @@ export class PublicationResource {
       async (data) => {
         return await new PublicationResource(data, experiment).finalize();
       },
-      { concurrency: 8 }
+      { concurrency: 8 },
     );
   }
 
   static async listByAuthor(
     experiment: ExperimentResource,
-    author: AgentResource
+    author: AgentResource,
   ): Promise<PublicationResource[]> {
     const results = await db
       .select()
@@ -225,8 +225,8 @@ export class PublicationResource {
       .where(
         and(
           eq(publications.experiment, experiment.toJSON().id),
-          eq(publications.author, author.toJSON().id)
-        )
+          eq(publications.author, author.toJSON().id),
+        ),
       );
 
     return await concurrentExecutor(
@@ -234,12 +234,12 @@ export class PublicationResource {
       async (data) => {
         return await new PublicationResource(data, experiment).finalize();
       },
-      { concurrency: 8 }
+      { concurrency: 8 },
     );
   }
 
   static async listByExperiment(
-    experiment: ExperimentResource
+    experiment: ExperimentResource,
   ): Promise<PublicationResource[]> {
     const results = await db
       .select()
@@ -252,13 +252,13 @@ export class PublicationResource {
       async (data) => {
         return await new PublicationResource(data, experiment).finalize();
       },
-      { concurrency: 8 }
+      { concurrency: 8 },
     );
   }
 
   static async findByReference(
     experiment: ExperimentResource,
-    reference: string
+    reference: string,
   ): Promise<PublicationResource | null> {
     const [r] = await PublicationResource.findByReferences(experiment, [
       reference,
@@ -269,7 +269,7 @@ export class PublicationResource {
 
   static async findByReferences(
     experiment: ExperimentResource,
-    references: string[]
+    references: string[],
   ): Promise<PublicationResource[]> {
     const results = await db
       .select()
@@ -277,8 +277,8 @@ export class PublicationResource {
       .where(
         and(
           eq(publications.experiment, experiment.toJSON().id),
-          inArray(publications.reference, references)
-        )
+          inArray(publications.reference, references),
+        ),
       );
 
     return await concurrentExecutor(
@@ -286,7 +286,7 @@ export class PublicationResource {
       async (data) => {
         return await new PublicationResource(data, experiment).finalize();
       },
-      { concurrency: 8 }
+      { concurrency: 8 },
     );
   }
 
@@ -311,12 +311,12 @@ export class PublicationResource {
       title: string;
       abstract: string;
       content: string;
-    }
+    },
   ): Promise<Result<PublicationResource, SrchdError>> {
     const references = PublicationResource.extractReferences(data.content);
     const found = await PublicationResource.findByReferences(
       experiment,
-      references
+      references,
     );
 
     const foundFilter = new Set(found.map((c) => c.toJSON().reference));
@@ -327,8 +327,8 @@ export class PublicationResource {
         new SrchdError(
           "reference_not_found_error",
           "Reference not found in publication submission content: " +
-            notFound.join(",")
-        )
+            notFound.join(","),
+        ),
       );
     }
 
@@ -346,7 +346,7 @@ export class PublicationResource {
     // We don't create citations until the publication gets published.
 
     return new Ok(
-      await new PublicationResource(created, experiment).finalize()
+      await new PublicationResource(created, experiment).finalize(),
     );
   }
 
@@ -381,7 +381,7 @@ export class PublicationResource {
     const references = PublicationResource.extractReferences(this.data.content);
     const found = await PublicationResource.findByReferences(
       this.experiment,
-      references
+      references,
     );
 
     try {
@@ -391,7 +391,7 @@ export class PublicationResource {
             experiment: this.experiment.toJSON().id,
             from: this.data.id,
             to: c.toJSON().id,
-          }))
+          })),
         );
       }
 
@@ -406,7 +406,7 @@ export class PublicationResource {
 
       if (!updated) {
         return new Err(
-          new SrchdError("not_found_error", "Publication not found", null)
+          new SrchdError("not_found_error", "Publication not found", null),
         );
       }
 
@@ -417,8 +417,8 @@ export class PublicationResource {
         new SrchdError(
           "resource_update_error",
           "Failed to publish publication",
-          normalizeError(error)
-        )
+          normalizeError(error),
+        ),
       );
     }
   }
@@ -436,7 +436,7 @@ export class PublicationResource {
 
       if (!updated) {
         return new Err(
-          new SrchdError("not_found_error", "Publication not found", null)
+          new SrchdError("not_found_error", "Publication not found", null),
         );
       }
 
@@ -447,21 +447,21 @@ export class PublicationResource {
         new SrchdError(
           "resource_update_error",
           "Failed to reject publication",
-          normalizeError(error)
-        )
+          normalizeError(error),
+        ),
       );
     }
   }
 
   async requestReviewers(
-    reviewers: AgentResource[]
+    reviewers: AgentResource[],
   ): Promise<Result<Review[], SrchdError>> {
     if (this.reviews.length > 0) {
       return new Err(
         new SrchdError(
           "resource_creation_error",
-          "Reviews already exist for this publication"
-        )
+          "Reviews already exist for this publication",
+        ),
       );
     }
 
@@ -472,7 +472,7 @@ export class PublicationResource {
           experiment: this.experiment.toJSON().id,
           publication: this.data.id,
           author: reviewer.toJSON().id,
-        }))
+        })),
       )
       .returning();
 
@@ -489,17 +489,17 @@ export class PublicationResource {
     data: Omit<
       InferInsertModel<typeof reviews>,
       "id" | "created" | "updated" | "experiment" | "publication" | "author"
-    >
+    >,
   ): Promise<Result<Review, SrchdError>> {
     const idx = this.reviews.findIndex(
-      (r) => r.author?.id === reviewer.toJSON().id
+      (r) => r.author?.id === reviewer.toJSON().id,
     );
     if (idx === -1) {
       return new Err(
         new SrchdError(
           "resource_creation_error",
-          "Review submitted does not match any review request."
-        )
+          "Review submitted does not match any review request.",
+        ),
       );
     }
 
@@ -514,14 +514,14 @@ export class PublicationResource {
         and(
           eq(reviews.experiment, this.experiment.toJSON().id),
           eq(reviews.publication, this.data.id),
-          eq(reviews.author, reviewer.toJSON().id)
-        )
+          eq(reviews.author, reviewer.toJSON().id),
+        ),
       )
       .returning();
 
     if (!updated) {
       return new Err(
-        new SrchdError("not_found_error", "Review not found", null)
+        new SrchdError("not_found_error", "Review not found", null),
       );
     }
 

@@ -91,4 +91,6 @@ export abstract class BaseModel {
     toolChoice: ToolChoice,
     tools: Tool[]
   ): Promise<Result<number, SrchdError>>;
+
+  abstract maxTokens(): number;
 }
