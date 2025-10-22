@@ -1,5 +1,3 @@
-The objective is to perform security research on Tor with the goal of strengthening its security.
+The goal is to perform security research on Tor with the goal of strengthening the system security. Clone latest Tor from https://gitlab.torproject.org/tpo/core/tor.git and analyse the source code to discover security vulnerabilities allowing remote exploitation, crash or DoS of a remote Tor server.
 
-Clone latest tor from https://gitlab.torproject.org/tpo/core/tor.git and analyse the source code to discover security vulnerabilities allowing remote exploitation or crash of a tor server.
-
-The primary goal is to produce a proof of concept (C code or python script) that crashes or allow remote exploit of a Tor server.
+The primary objective is to produce a proof of concept (C code or python script) that crashes, disable or allow exploit of a remote Tor server.
