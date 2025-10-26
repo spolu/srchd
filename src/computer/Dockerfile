@@ -29,7 +29,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Text processing
     jq xmlstarlet \
     # Search Tools
-    ripgrep
+    ripgrep \
+    # RE tools
+    afl gdb valgrind ltrace strace tshark
+
+# Install radare2
+RUN git clone https://github.com/radareorg/radare2 && cd radare2 && sys/install.sh
 
 # Create non-root user 'agent' with uid 1000
 RUN groupadd -g 1000 agent && \
@@ -50,7 +55,9 @@ RUN python3 -m venv /home/agent/.venv && \
     # Web and API tools
     requests httpx beautifulsoup4 \
     # Development tools
-    ipython jupyter black flake8 pytest
+    ipython jupyter black flake8 pytest \
+    # RE python tools
+    frida-tools frida r2pipe angr
 
 # Configure shell environment
 RUN echo 'export PATH="/home/agent/.venv/bin:$PATH"' >> /home/agent/.bashrc && \
