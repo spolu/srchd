@@ -82,6 +82,36 @@ export class MistralModel extends BaseModel {
         (c) => c.type !== "tool_result" && c.type !== "tool_use",
       );
 
+      switch (msg.role) {
+        case "user":
+          if (rest.length > 0) {
+            mistralMessages.push({
+              role: "user",
+              content: rest.map(this.contentChunk),
+            });
+          }
+          break;
+        case "agent":
+          if (rest.length > 0 || toolCalls.length > 0) {
+            mistralMessages.push({
+              role: "assistant",
+              content: rest.map(this.contentChunk),
+              toolCalls: toolCalls.map((c) => {
+                return {
+                  id: c.id,
+                  function: {
+                    name: c.name,
+                    arguments: c.input,
+                  },
+                };
+              }),
+            });
+          }
+          break;
+        default:
+          assertNever(msg.role);
+      }
+
       for (const toolResult of toolResults) {
         let content: ContentChunk[];
         mistralMessages.push({
@@ -102,31 +132,6 @@ export class MistralModel extends BaseModel {
           toolCallId: toolResult.toolUseId,
           name: toolResult.toolUseName,
         });
-      }
-      switch (msg.role) {
-        case "user":
-          mistralMessages.push({
-            role: "user",
-            content: rest.map(this.contentChunk),
-          });
-          break;
-        case "agent":
-          mistralMessages.push({
-            role: "assistant",
-            content: rest.map(this.contentChunk),
-            toolCalls: toolCalls.map((c) => {
-              return {
-                id: c.id,
-                function: {
-                  name: c.name,
-                  arguments: c.input,
-                },
-              };
-            }),
-          });
-          break;
-        default:
-          assertNever(msg.role);
       }
     }
 
@@ -181,7 +186,10 @@ export class MistralModel extends BaseModel {
             type: "tool_use",
             id: toolCall.id ?? "",
             name: toolCall.function.name,
-            input: toolCall.function.arguments,
+            input:
+              typeof toolCall.function.arguments === "string"
+                ? JSON.parse(toolCall.function.arguments)
+                : toolCall.function.arguments,
             provider: null,
           });
         }
