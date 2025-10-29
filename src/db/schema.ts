@@ -9,6 +9,7 @@ import { Message, provider, ThinkingConfig } from "../models";
 import { AnthropicModels } from "../models/anthropic";
 import { GeminiModels } from "../models/gemini";
 import { OpenAIModels } from "../models/openai";
+import { MistralModels } from "../models/mistral";
 
 export const experiments = sqliteTable(
   "experiments",
@@ -24,7 +25,7 @@ export const experiments = sqliteTable(
     name: text("name").notNull(),
     problem: text("problem").notNull(),
   },
-  (t) => [unique().on(t.name)]
+  (t) => [unique().on(t.name)],
 );
 
 export const agents = sqliteTable(
@@ -44,11 +45,11 @@ export const agents = sqliteTable(
     name: text("name").notNull(),
     provider: text("provider").$type<provider>().notNull(),
     model: text("model")
-      .$type<AnthropicModels | GeminiModels | OpenAIModels>()
+      .$type<AnthropicModels | GeminiModels | OpenAIModels | MistralModels>()
       .notNull(),
     thinking: text("thinking").$type<ThinkingConfig>().notNull(),
   },
-  (t) => [unique().on(t.name, t.experiment)]
+  (t) => [unique().on(t.name, t.experiment)],
 );
 
 export const evolutions = sqliteTable(
@@ -76,10 +77,10 @@ export const evolutions = sqliteTable(
       index("evolutions_idx_experiment_agent_created").on(
         t.experiment,
         t.agent,
-        t.created
+        t.created,
       ),
     ];
-  }
+  },
 );
 
 export const messages = sqliteTable(
@@ -110,7 +111,7 @@ export const messages = sqliteTable(
       .$type<Message["content"]>()
       .notNull(),
   },
-  (t) => [unique().on(t.experiment, t.agent, t.position)]
+  (t) => [unique().on(t.experiment, t.agent, t.position)],
 );
 
 export const publications = sqliteTable(
@@ -141,7 +142,7 @@ export const publications = sqliteTable(
   },
   (t) => {
     return [unique().on(t.experiment, t.reference)];
-  }
+  },
 );
 
 export const citations = sqliteTable(
@@ -167,7 +168,7 @@ export const citations = sqliteTable(
       .notNull()
       .references(() => publications.id),
   },
-  (t) => [unique().on(t.from, t.to, t.experiment)]
+  (t) => [unique().on(t.from, t.to, t.experiment)],
 );
 
 export const reviews = sqliteTable(
@@ -197,7 +198,7 @@ export const reviews = sqliteTable(
     }),
     content: text("content"),
   },
-  (t) => [unique().on(t.author, t.publication)]
+  (t) => [unique().on(t.author, t.publication)],
 );
 
 export const solutions = sqliteTable(
@@ -234,7 +235,7 @@ export const solutions = sqliteTable(
     index("solutions_idx_experiment_agent_created").on(
       t.experiment,
       t.agent,
-      t.created
+      t.created,
     ),
-  ]
+  ],
 );
