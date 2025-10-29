@@ -8,7 +8,6 @@ import {
   TextContent,
   ToolUse,
   Thinking,
-  ThinkingConfig,
 } from "./index";
 import { normalizeError, SrchdError } from "../lib/error";
 import { Err, Ok, Result } from "../lib/result";
@@ -42,8 +41,6 @@ export function isMistralModel(model: string): model is MistralModels {
 export class MistralModel extends BaseModel {
   private client: Mistral;
   private model: MistralModels;
-  private thinking: ThinkingConfig;
-  private tokenCount?: number;
 
   constructor(
     config: ModelConfig,
@@ -51,7 +48,6 @@ export class MistralModel extends BaseModel {
   ) {
     super(config);
     this.client = new Mistral();
-    this.thinking = config.thinking ?? "none"; // Unused for Mistral
     this.model = model;
   }
 
@@ -145,7 +141,7 @@ export class MistralModel extends BaseModel {
   ): Promise<Result<Message, SrchdError>> {
     try {
       const chatResponse = await this.client.chat.complete({
-        model: "mistral-medium-latest",
+        model: this.model,
         messages: [
           {
             role: "system",
@@ -166,7 +162,6 @@ export class MistralModel extends BaseModel {
 
       const msg = chatResponse.choices[0].message;
       const finishReason = chatResponse.choices[0].finishReason;
-      this.tokenCount = chatResponse.usage.completionTokens;
       if (finishReason !== "stop" && finishReason !== "tool_calls") {
         return new Err(
           new SrchdError(
@@ -293,6 +288,8 @@ export class MistralModel extends BaseModel {
         return 128000;
       case "codestral-latest":
         return 32000;
+      case "magistral-medium-latest":
+        return 128000;
       default:
         assertNever(this.model);
     }
