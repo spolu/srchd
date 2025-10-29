@@ -50,8 +50,7 @@ export class MistralModel extends BaseModel {
     model: MistralModels = "mistral-large-latest",
   ) {
     super(config);
-    const apiKey = process.env.MISTRAL_API_KEY || "your_api_key";
-    this.client = new Mistral({ apiKey: apiKey });
+    this.client = new Mistral();
     this.thinking = config.thinking ?? "none"; // Unused for Mistral
     this.model = model;
   }
