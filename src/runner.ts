@@ -29,6 +29,7 @@ import { createGoalSolutionServer } from "./tools/goal_solution";
 import { GeminiModel, GeminiModels } from "./models/gemini";
 import { OpenAIModel, OpenAIModels } from "./models/openai";
 import { createComputerServer } from "./tools/computer";
+import { MistralModel, MistralModels } from "./models/mistral";
 
 export class Runner {
   private experiment: ExperimentResource;
@@ -117,6 +118,13 @@ export class Runner {
               thinking: agent.toJSON().thinking,
             },
             agent.toJSON().model as OpenAIModels,
+          );
+        case "mistral":
+          return new MistralModel(
+            {
+              thinking: agent.toJSON().thinking,
+            },
+            agent.toJSON().model as MistralModels,
           );
         default:
           assertNever(provider);
