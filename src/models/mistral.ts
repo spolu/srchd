@@ -24,14 +24,12 @@ import { removeNulls } from "../lib/utils";
 type MistralMessage = ChatCompletionStreamRequest["messages"][number];
 
 export type MistralModels =
-  | "magistral-medium-latest" // reasoning model
   | "mistral-large-latest"
   | "mistral-small-latest"
   | "codestral-latest";
 
 export function isMistralModel(model: string): model is MistralModels {
   return [
-    "magistral-medium-latest",
     "mistral-large-latest",
     "mistral-small-latest",
     "codestral-latest",
@@ -288,8 +286,6 @@ export class MistralModel extends BaseModel {
         return 128000;
       case "codestral-latest":
         return 32000;
-      case "magistral-medium-latest":
-        return 128000;
       default:
         assertNever(this.model);
     }
