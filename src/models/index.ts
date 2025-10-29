@@ -3,9 +3,9 @@ import { Result } from "../lib/result";
 import { SrchdError } from "../lib/error";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types";
 
-export type provider = "gemini" | "anthropic" | "openai" | "mistral";
+export type provider = "gemini" | "anthropic" | "openai";
 export function isProvider(str: string): str is provider {
-  return ["gemini", "anthropic", "openai", "mistral"].includes(str);
+  return ["gemini", "anthropic", "openai"].includes(str);
 }
 
 export const DEFAULT_MAX_TOKENS = 4096;
@@ -46,7 +46,7 @@ export interface Message {
 }
 
 export function isUserMessageWithText(
-  message: Message,
+  message: Message
 ): message is Message & { content: TextContent[] } {
   return (
     message.role === "user" && message.content.every((c) => c.type === "text")
@@ -82,14 +82,14 @@ export abstract class BaseModel {
     messages: Message[],
     prompt: string,
     toolChoice: ToolChoice,
-    tools: Tool[],
+    tools: Tool[]
   ): Promise<Result<Message, SrchdError>>;
 
   abstract tokens(
     messages: Message[],
     prompt: string,
     toolChoice: ToolChoice,
-    tools: Tool[],
+    tools: Tool[]
   ): Promise<Result<number, SrchdError>>;
 
   abstract maxTokens(): number;

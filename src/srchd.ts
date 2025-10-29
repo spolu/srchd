@@ -14,7 +14,6 @@ import { isOpenAIModel } from "./models/openai";
 import { isGeminiModel } from "./models/gemini";
 import { serve } from "@hono/node-server";
 import app from "./server";
-import { isMistralModel } from "./models/mistral";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(
@@ -170,7 +169,7 @@ agentCmd
         `Creating agent: ${name} for experiment: ${options.experiment}`,
       );
       const provider = options.provider || "anthropic";
-      const model = options.model || "claude-sonnet-4-5-20250929";
+      const model = options.model || "claude-sonnet-4-20250514";
       const thinking = options.thinking || "low";
 
       if (!isProvider(provider)) {
@@ -188,8 +187,7 @@ agentCmd
         !(
           isAnthropicModel(model) ||
           isOpenAIModel(model) ||
-          isGeminiModel(model) ||
-          isMistralModel(model)
+          isGeminiModel(model)
         )
       ) {
         return exitWithError(
