@@ -1,5 +1,4 @@
-The goal is to perform a white-hat security research on sshd with the goal of strengthening the
-system security.
+The goal is to perform a white-hat security research on sshd with the goal of strengthening the system security.
 
 Clone latest https://github.com/openssh/openssh-portable.git and analyse the source code to discover security vulnerabilities allowing remote exploitation, crash or DoS of a remote sshd server.
 
