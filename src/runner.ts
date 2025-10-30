@@ -29,6 +29,7 @@ import { createGoalSolutionServer } from "./tools/goal_solution";
 import { GeminiModel, GeminiModels } from "./models/gemini";
 import { OpenAIModel, OpenAIModels } from "./models/openai";
 import { createComputerServer } from "./tools/computer";
+import { TokensResource } from "./resources/tokens";
 
 export class Runner {
   private experiment: ExperimentResource;
@@ -485,17 +486,19 @@ ${this.agent.toJSON().system}`;
       return messagesForModel;
     }
 
-    const m = await this.model.run(
+    const res = await this.model.run(
       messagesForModel.value,
       systemPrompt,
       "auto",
       tools.value,
     );
-    if (m.isErr()) {
-      return m;
+    if (res.isErr()) {
+      return res;
     }
 
-    if (m.value.content.length === 0) {
+    const { message, tokenCount } = res.value;
+
+    if (message.content.length === 0) {
       console.log(
         `WARNING: Skipping empty agent response content for agent ${
           this.agent.toJSON().name
@@ -505,7 +508,7 @@ ${this.agent.toJSON().system}`;
     }
 
     const toolResults = await concurrentExecutor(
-      m.value.content.filter((content) => content.type === "tool_use"),
+      message.content.filter((content) => content.type === "tool_use"),
       async (t: ToolUse) => {
         return await this.executeTool(t);
       },
@@ -517,12 +520,20 @@ ${this.agent.toJSON().system}`;
     const agentMessage = await MessageResource.create(
       this.experiment,
       this.agent,
-      m.value,
+      message,
       last.position() + 1,
     );
     this.messages.push(agentMessage);
 
-    m.value.content.forEach((c) => {
+    if (tokenCount) {
+      await TokensResource.create(this.agent, agentMessage, tokenCount);
+    } else {
+      console.log(
+        `WARNING: No token count for agent: ${this.agent.toJSON().name} response.`,
+      );
+    }
+
+    message.content.forEach((c) => {
       this.logContent(c, agentMessage.toJSON().id);
     });
 

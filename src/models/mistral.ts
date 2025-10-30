@@ -224,12 +224,56 @@ export class MistralModel extends BaseModel {
           role: "agent",
           content,
         },
+        tokenCount: chatResponse.usage.totalTokens,
       });
     } catch (error) {
       return new Err(
         new SrchdError(
           "model_error",
           "Failed to run model",
+          normalizeError(error),
+        ),
+      );
+    }
+  }
+
+  async tokens(
+    messages: Message[],
+    prompt: string,
+    toolChoice: ToolChoice,
+    tools: Tool[],
+  ): Promise<Result<number, SrchdError>> {
+    try {
+      // Mistral's doesn't have a token counting API so we approximate with token ~= 4 chars.
+      const tokens =
+        messages.reduce((acc, m) => {
+          m.content.reduce((acc, c) => {
+            switch (c.type) {
+              case "text":
+                return acc + c.text.length;
+              case "tool_use":
+                return acc + c.name.length + c.input.length;
+              case "thinking":
+                // We don't have any thinking models yet
+                // return acc + c.thinking.length;
+                throw new Error("Thinking not implemented yet for mistral");
+                return acc;
+              case "tool_result":
+                const contentLength = c.content
+                  .filter((c) => c.type === "text")
+                  .reduce((acc, c) => acc + c.text.length, 0);
+                return acc + c.toolUseName.length + contentLength;
+            }
+          }, acc);
+          return acc;
+        }, 0) / 4;
+
+      return new Ok(tokens);
+    } catch (error) {
+      return new Err(
+        new SrchdError(
+          "model_error",
+          "Failed to count tokens",
           normalizeError(error),
         ),
       );
