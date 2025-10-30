@@ -282,14 +282,14 @@ export class OpenAIModel extends BaseModel {
         })
         .flat();
 
-      const tokenCount = response.usage?.total_tokens;
+      // console.log(response.usage);
 
       return new Ok({
         message: {
           role: "agent",
           content,
         },
-        tokenCount,
+        tokenCount: response.usage?.total_tokens,
       });
     } catch (error) {
       return new Err(
@@ -302,28 +302,38 @@ export class OpenAIModel extends BaseModel {
     }
   }
 
-  async tokens(message: Message): Promise<Result<number, SrchdError>> {
-    return new Ok(
-      message.content
-        .map((content) => {
-          switch (content.type) {
-            case "text": {
-              return ENCODING.encode(content.text).length;
+  async tokens(
+    messages: Message[],
+    prompt: string,
+    toolChoice: ToolChoice,
+    tools: Tool[],
+  ): Promise<Result<number, SrchdError>> {
+    const tokenCount =
+      ENCODING.encode(prompt).length +
+      ENCODING.encode(JSON.stringify(tools)).length +
+      messages
+        .map((msg) => {
+          return msg.content.map((content) => {
+            switch (content.type) {
+              case "text": {
+                return ENCODING.encode(content.text).length;
+              }
+              case "tool_use": {
+                return ENCODING.encode(JSON.stringify(content.input)).length;
+              }
+              case "tool_result": {
+                return ENCODING.encode(JSON.stringify(content.content)).length;
+              }
+              case "thinking": {
+                return ENCODING.encode(content.thinking).length;
+              }
             }
-            case "tool_use": {
-              return ENCODING.encode(JSON.stringify(content.input)).length;
-            }
-            case "tool_result": {
-              return ENCODING.encode(JSON.stringify(content.content)).length;
-            }
-            case "thinking": {
-              return ENCODING.encode(content.thinking).length;
-            }
-          }
+          });
         })
         .flat()
-        .reduce((a, b) => a + b, 0),
-    );
+        .reduce((a, b) => a + b, 0);
+
+    return new Ok(tokenCount);
   }
 
   maxTokens(): number {

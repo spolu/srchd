@@ -285,11 +285,17 @@ export class AnthropicModel extends BaseModel {
     }
   }
 
-  async tokens(message: Message): Promise<Result<number, SrchdError>> {
+  async tokens(
+    messages: Message[],
+    prompt: string,
+    toolChoice: ToolChoice,
+    tools: Tool[],
+  ): Promise<Result<number, SrchdError>> {
     try {
       const response = await this.client.messages.countTokens({
         model: this.model,
-        messages: this.messages([message]),
+        messages: this.messages(messages),
+        system: prompt,
         thinking: (() => {
           switch (this.config.thinking) {
             case undefined:
@@ -310,6 +316,14 @@ export class AnthropicModel extends BaseModel {
             }
           }
         })(),
+        tools: tools.map((tool) => ({
+          name: tool.name,
+          description: tool.description,
+          input_schema: tool.inputSchema as any,
+        })),
+        tool_choice: {
+          type: toolChoice,
+        },
       });
 
       return new Ok(response.input_tokens);

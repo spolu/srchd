@@ -163,6 +163,7 @@ export class GeminiModel extends BaseModel {
             role: "agent",
             content: [],
           },
+          tokenCount: response.usageMetadata?.totalTokenCount,
         });
       }
 
@@ -231,11 +232,22 @@ export class GeminiModel extends BaseModel {
     }
   }
 
-  async tokens(message: Message): Promise<Result<number, SrchdError>> {
+  async tokens(
+    messages: Message[],
+    prompt: string,
+    toolChoice: ToolChoice,
+    tools: Tool[],
+  ): Promise<Result<number, SrchdError>> {
     try {
       const response = await this.client.models.countTokens({
         model: this.model,
-        contents: this.contents([message]),
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }],
+          },
+          ...this.contents(messages),
+        ],
         config: {
           // No tools for countTokens
         },
