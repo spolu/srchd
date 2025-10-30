@@ -14,6 +14,7 @@ import { isOpenAIModel } from "./models/openai";
 import { isGeminiModel } from "./models/gemini";
 import { serve } from "@hono/node-server";
 import app from "./server";
+import { isMistralModel } from "./models/mistral";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(
@@ -187,7 +188,8 @@ agentCmd
         !(
           isAnthropicModel(model) ||
           isOpenAIModel(model) ||
-          isGeminiModel(model)
+          isGeminiModel(model) ||
+          isMistralModel(model)
         )
       ) {
         return exitWithError(
