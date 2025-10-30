@@ -3,9 +3,9 @@ import { Result } from "../lib/result";
 import { SrchdError } from "../lib/error";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types";
 
-export type provider = "gemini" | "anthropic" | "openai";
+export type provider = "gemini" | "anthropic" | "openai" | "mistral";
 export function isProvider(str: string): str is provider {
-  return ["gemini", "anthropic", "openai"].includes(str);
+  return ["gemini", "anthropic", "openai", "mistral"].includes(str);
 }
 
 export const DEFAULT_MAX_TOKENS = 4096;
