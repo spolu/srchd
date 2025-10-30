@@ -55,28 +55,31 @@ export class MistralModel extends BaseModel {
     for (const msg of messages) {
       switch (msg.role) {
         case "user":
-          if (msg.content.every((c) => c.type === "text")) {
+          mistralMessages.push(
+            ...msg.content
+              .filter((c) => c.type === "tool_result")
+              .map((c) => ({
+                role: "tool" as const,
+                toolCallId: c.toolUseId,
+                name: c.toolUseName,
+                content: c.content
+                  .filter((c) => c.type === "text")
+                  .map((c) => ({
+                    type: "text" as const,
+                    text: c.text,
+                  })),
+              })),
+          );
+          if (msg.content.find((c) => c.type === "text")) {
             mistralMessages.push({
               role: "user",
-              content: msg.content.map((c) => ({
-                type: "text",
-                text: c.text,
-              })),
+              content: msg.content
+                .filter((c) => c.type === "text")
+                .map((c) => ({
+                  type: "text",
+                  text: c.text,
+                })),
             });
-          } else if (msg.content.every((c) => c.type === "tool_result")) {
-            for (const toolResult of msg.content) {
-              mistralMessages.push({
-                role: "tool",
-                toolCallId: toolResult.toolUseId,
-                name: toolResult.toolUseName,
-                content: toolResult.content as ContentChunk[],
-              });
-            }
-          } else {
-            console.log(
-              "Unexpected user message",
-              JSON.stringify(msg, null, 2),
-            );
           }
           break;
         case "agent":
