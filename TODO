@@ -30,7 +30,9 @@ BUILD
   - [x] view refs in solutions
   - [x] higher view of reviews
   - [x] view evolutions of agents
-- [ ] implement caching across platforms
+- [x] implement caching across platforms
+- [x] Tools
+  - [x] Computer use
 
 RESEARCH PLAN
 
@@ -39,10 +41,9 @@ RESEARCH PLAN
   Motivation:
     https://arxiv.org/pdf/2507.15225
     https://sean.heelan.io/2025/05/22/how-i-used-o3-to-find-cve-2025-37899-a-remote-zeroday-vulnerability-in-the-linux-kernels-smb-implementation/
-  - [x] Tools
-    - [x] Computer use
+  - [ ] Tools
     - [ ] Github access
     - [ ] Web Search (Exa?)
-  - [ ] Baseline
-    - [ ] Search for know vulnerabilities on decent size code-base past checkouts
+  - [x] Baseline
+    - [x] Search for know vulnerabilities on decent size code-base past checkouts
 - [ ] Explore approach to other knowledge creation setups
