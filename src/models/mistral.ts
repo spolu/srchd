@@ -4,10 +4,10 @@ import {
   Message,
   Tool,
   ToolChoice,
-  DEFAULT_MAX_TOKENS,
   TextContent,
   ToolUse,
   Thinking,
+  isUserMessageWithText,
 } from "./index";
 import { normalizeError, SrchdError } from "../lib/error";
 import { Err, Ok, Result } from "../lib/result";
@@ -18,6 +18,7 @@ import type {
   ChatCompletionStreamRequest,
   ContentChunk,
   TextChunk,
+  ToolCall,
 } from "@mistralai/mistralai/models/components";
 import { removeNulls } from "../lib/utils";
 
@@ -49,82 +50,72 @@ export class MistralModel extends BaseModel {
     this.model = model;
   }
 
-  private contentChunk(content: TextContent | Thinking): ContentChunk {
-    switch (content.type) {
-      case "text":
-        return {
-          type: "text",
-          text: content.text,
-        };
-      case "thinking":
-        return {
-          type: "thinking",
-          thinking: [{ type: "text", text: content.thinking }],
-        };
-    }
-  }
-
   messages(messages: Message[]) {
     const mistralMessages: MistralMessage[] = [];
-    for (let i = 0; i < messages.length; i++) {
-      const msg = messages[i];
-      // Handle tool_result separately
-      const toolResults = msg.content.filter((c) => c.type === "tool_result");
-      const toolCalls = msg.content.filter((c) => c.type === "tool_use");
-      const rest = msg.content.filter(
-        (c) => c.type !== "tool_result" && c.type !== "tool_use",
-      );
 
+    const agentMessageFromAccumulatedContent = (
+      content: ContentChunk[],
+      toolCalls: ToolCall[],
+    ) => {
+      if (content.length > 0 || toolCalls.length > 0) {
+        mistralMessages.push({
+          role: "assistant",
+          content,
+          toolCalls,
+        });
+      }
+    };
+
+    for (const msg of messages) {
       switch (msg.role) {
         case "user":
-          if (rest.length > 0) {
-            mistralMessages.push({
-              role: "user",
-              content: rest.map(this.contentChunk),
-            });
-          }
+          mistralMessages.push({
+            role: "user",
+            content: msg.content
+              .filter((c) => c.type === "text")
+              .map((c) => ({
+                type: "text",
+                text: c.text,
+              })),
+          });
           break;
         case "agent":
-          if (rest.length > 0 || toolCalls.length > 0) {
-            mistralMessages.push({
-              role: "assistant",
-              content: rest.map(this.contentChunk),
-              toolCalls: toolCalls.map((c) => {
-                return {
+          let content: ContentChunk[] = [];
+          let toolCalls: ToolCall[] = [];
+          for (const c of msg.content) {
+            switch (c.type) {
+              case "tool_result":
+                agentMessageFromAccumulatedContent(content, toolCalls);
+                content = [];
+                toolCalls = [];
+                mistralMessages.push({
+                  role: "tool",
+                  toolCallId: c.toolUseId,
+                  name: c.toolUseName,
+                  content: c.content as ContentChunk[],
+                });
+                break;
+              case "text":
+                content.push({
+                  type: "text",
+                  text: c.text,
+                });
+                break;
+              case "tool_use":
+                toolCalls.push({
                   id: c.id,
+                  type: "function",
                   function: {
                     name: c.name,
                     arguments: c.input,
                   },
-                };
-              }),
-            });
+                });
+                break;
+              default:
+                continue;
+            }
           }
-          break;
-        default:
-          assertNever(msg.role);
-      }
-
-      for (const toolResult of toolResults) {
-        let content: ContentChunk[];
-        mistralMessages.push({
-          role: "tool",
-          content: removeNulls(
-            toolResult.content.map((c): ContentChunk | null => {
-              switch (c.type) {
-                case "text":
-                  return {
-                    type: "text",
-                    text: c.text,
-                  };
-                default:
-                  return null;
-              }
-            }),
-          ),
-          toolCallId: toolResult.toolUseId,
-          name: toolResult.toolUseName,
-        });
+          agentMessageFromAccumulatedContent(content, toolCalls);
       }
     }
 
@@ -205,16 +196,7 @@ export class MistralModel extends BaseModel {
                       text: c.text,
                       provider: null,
                     };
-                  case "thinking":
-                    return {
-                      type: "thinking" as const,
-                      thinking: c.thinking
-                        .filter((t): t is TextChunk => t.type === "text")
-                        .map((t) => t.text)
-                        .join("\n"),
-                      provider: null,
-                    };
-                  default:
+                  default: // Note: thinking is not implemented yet for mistral
                     return null;
                 }
               }),
@@ -255,7 +237,10 @@ export class MistralModel extends BaseModel {
               case "tool_use":
                 return acc + c.name.length + c.input.length;
               case "thinking":
-                return acc + c.thinking.length;
+                // We don't have any thinking models yet
+                // return acc + c.thinking.length;
+                throw new Error("Thinking not implemented yet for mistral");
+                return acc;
               case "tool_result":
                 const contentLength = c.content
                   .filter((c) => c.type === "text")
