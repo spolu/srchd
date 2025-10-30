@@ -7,19 +7,15 @@ import {
   TextContent,
   ToolUse,
   Thinking,
-  isUserMessageWithText,
 } from "./index";
 import { normalizeError, SrchdError } from "../lib/error";
 import { Err, Ok, Result } from "../lib/result";
 import { assertNever } from "../lib/assert";
 
 import { Mistral } from "@mistralai/mistralai";
-import type {
-  ChatCompletionStreamRequest,
-  ContentChunk,
-  ToolCall,
-} from "@mistralai/mistralai/models/components";
+import type { ChatCompletionStreamRequest } from "@mistralai/mistralai/models/components";
 import { removeNulls } from "../lib/utils";
+import assert from "assert";
 
 type MistralMessage = ChatCompletionStreamRequest["messages"][number];
 
@@ -34,6 +30,23 @@ export function isMistralModel(model: string): model is MistralModels {
     "mistral-small-latest",
     "codestral-latest",
   ].includes(model);
+}
+
+// Sometimes mistral models send back wrong function names so we validate them here
+function validateName(name: string): { valid: boolean; reason?: string } {
+  if (!(name.length <= 256)) {
+    return {
+      valid: false,
+      reason: `name: ${name} must be less than 256 characters`,
+    };
+  }
+  if (!name.match(/^[a-zA-Z0-9_-]+$/)) {
+    return {
+      valid: false,
+      reason: `name: ${name} must be alphanumeric`,
+    };
+  }
+  return { valid: true };
 }
 
 export class MistralModel extends BaseModel {
@@ -83,30 +96,33 @@ export class MistralModel extends BaseModel {
           }
           break;
         case "agent":
-          mistralMessages.push({
-            role: "assistant",
+          const agentMsg = {
+            role: "assistant" as const,
             content: msg.content
               .filter((c) => c.type === "text") // We don't support thinking atm
               .map((c) => {
                 switch (c.type) {
                   case "text":
                     return {
-                      type: "text",
+                      type: "text" as const,
                       text: c.text,
                     };
                 }
               }),
             toolCalls: msg.content
               .filter((c) => c.type === "tool_use")
-              .map((c) => ({
-                id: c.id,
-                type: "function",
-                function: {
-                  name: c.name,
-                  arguments: c.input,
-                },
-              })),
-          });
+              .map((c) => {
+                return {
+                  id: c.id,
+                  type: "function" as const,
+                  function: {
+                    name: c.name,
+                    arguments: c.input,
+                  },
+                };
+              }),
+          };
+          mistralMessages.push(agentMsg);
       }
     }
 
@@ -120,7 +136,6 @@ export class MistralModel extends BaseModel {
     tools: Tool[],
   ): Promise<Result<Message, SrchdError>> {
     try {
-      //console.log(JSON.stringify(this.messages(messages), null, 2));
       const chatResponse = await this.client.chat.complete({
         model: this.model,
         messages: [
@@ -157,16 +172,24 @@ export class MistralModel extends BaseModel {
 
       if (msg.toolCalls) {
         for (const toolCall of msg.toolCalls) {
-          content.push({
-            type: "tool_use",
-            id: toolCall.id ?? "",
-            name: toolCall.function.name,
-            input:
-              typeof toolCall.function.arguments === "string"
-                ? JSON.parse(toolCall.function.arguments)
-                : toolCall.function.arguments,
-            provider: null,
-          });
+          const { valid, reason } = validateName(toolCall.function.name);
+          if (valid) {
+            content.push({
+              type: "tool_use",
+              id: toolCall.id ?? "",
+              name: toolCall.function.name,
+              input:
+                typeof toolCall.function.arguments === "string"
+                  ? JSON.parse(toolCall.function.arguments)
+                  : toolCall.function.arguments,
+              provider: null,
+            });
+          } else {
+            console.warn(
+              `Mistral model received invalid tool name: ${toolCall.function.name}.
+              Reason: ${reason}`,
+            );
+          }
         }
       }
 
