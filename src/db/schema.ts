@@ -9,6 +9,7 @@ import { Message, provider, ThinkingConfig } from "../models";
 import { AnthropicModels } from "../models/anthropic";
 import { GeminiModels } from "../models/gemini";
 import { OpenAIModels } from "../models/openai";
+import { MistralModels } from "../models/mistral";
 
 export const experiments = sqliteTable(
   "experiments",
@@ -61,7 +62,7 @@ export const agents = sqliteTable(
     name: text("name").notNull(),
     provider: text("provider").$type<provider>().notNull(),
     model: text("model")
-      .$type<AnthropicModels | GeminiModels | OpenAIModels>()
+      .$type<AnthropicModels | GeminiModels | OpenAIModels | MistralModels>()
       .notNull(),
     thinking: text("thinking").$type<ThinkingConfig>().notNull(),
   },
