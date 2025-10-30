@@ -2,7 +2,6 @@ import type { JSONSchema7 as JSONSchema } from "json-schema";
 import { Result } from "../lib/result";
 import { SrchdError } from "../lib/error";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types";
-import { TokenUsage } from "../lib/token";
 
 export type provider = "gemini" | "anthropic" | "openai" | "mistral";
 export function isProvider(str: string): str is provider {
@@ -12,6 +11,14 @@ export function isProvider(str: string): str is provider {
 export const DEFAULT_MAX_TOKENS = 4096;
 
 export type ProviderData = Partial<Record<provider, any>>;
+
+export type TokenUsage = {
+  total: number;
+  input: number;
+  output: number;
+  cached?: number;
+  thinking?: number;
+};
 
 export interface TextContent {
   type: "text";

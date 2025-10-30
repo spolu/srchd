@@ -3,7 +3,7 @@ import { tokens } from "../db/schema";
 import { AgentResource } from "./agent";
 import { MessageResource } from "./messages";
 import { db, Tx } from "../db";
-import { TokenUsage } from "../lib/token";
+import { TokenUsage } from "../models/index";
 
 export class TokensResource {
   private data: InferSelectModel<typeof tokens>;
@@ -55,8 +55,6 @@ export class TokensResource {
         },
       );
   }
-
-  static async getExperiment
 
   static async create(
     agent: AgentResource,

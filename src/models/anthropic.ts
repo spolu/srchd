@@ -12,7 +12,7 @@ import { normalizeError, SrchdError } from "../lib/error";
 import { Err, Ok, Result } from "../lib/result";
 import { assertNever } from "../lib/assert";
 import { removeNulls } from "../lib/utils";
-import { TokenUsage } from "../lib/token";
+import { TokenUsage } from "./index";
 
 const DEFAULT_LOW_THINKING_TOKENS = 4096;
 const DEFAULT_HIGH_THINKING_TOKENS = 8192;

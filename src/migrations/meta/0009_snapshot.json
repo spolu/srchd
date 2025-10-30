@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "0cfb789d-758d-4b77-bd58-cc26298329d3",
-  "prevId": "f65aff28-e150-4641-b639-776049ffd2a5",
+  "id": "a15a4338-995f-4236-8bd8-960d5d847764",
+  "prevId": "2abd84dc-ba08-46f4-9766-78e79c48f570",
   "tables": {
     "agents": {
       "name": "agents",
@@ -830,6 +830,34 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "input": {
+          "name": "input",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "output": {
+          "name": "output",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cached": {
+          "name": "cached",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "thinking": {
+          "name": "thinking",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         }
       },
