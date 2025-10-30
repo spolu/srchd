@@ -15,7 +15,7 @@ import { assertNever } from "../lib/assert";
 import { Mistral } from "@mistralai/mistralai";
 import type { ChatCompletionStreamRequest } from "@mistralai/mistralai/models/components";
 import { removeNulls } from "../lib/utils";
-import { TokenUsage } from "../lib/token";
+import { TokenUsage } from "./index";
 
 type MistralMessage = ChatCompletionStreamRequest["messages"][number];
 

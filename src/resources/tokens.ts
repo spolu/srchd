@@ -3,8 +3,8 @@ import { agents, tokens } from "../db/schema";
 import { AgentResource } from "./agent";
 import { MessageResource } from "./messages";
 import { db, Tx } from "../db";
-import { TokenUsage } from "../lib/token";
 import { ExperimentResource } from "./experiment";
+import { TokenUsage } from "../models/index";
 
 export class TokensResource {
   private data: InferSelectModel<typeof tokens>;

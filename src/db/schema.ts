@@ -46,7 +46,7 @@ export const tokens = sqliteTable("tokens", {
   input: integer("input").notNull(),
   output: integer("output").notNull(),
   cached: integer("cached"),
-  thinking: integer("reasoning"),
+  thinking: integer("thinking"),
 });
 
 export const agents = sqliteTable(

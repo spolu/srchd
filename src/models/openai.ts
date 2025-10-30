@@ -1,12 +1,18 @@
 import { ResponseInputItem } from "openai/resources/responses/responses";
-import { BaseModel, ModelConfig, Message, Tool, ToolChoice } from "./index";
+import {
+  BaseModel,
+  ModelConfig,
+  Message,
+  Tool,
+  ToolChoice,
+  TokenUsage,
+} from "./index";
 
 import OpenAI from "openai";
 import { normalizeError, SrchdError } from "../lib/error";
 import { Err, Ok, Result } from "../lib/result";
 import { assertNever } from "../lib/assert";
 import { get_encoding } from "tiktoken";
-import { ThinkChunk$inboundSchema } from "@mistralai/mistralai/models/components";
 
 const ENCODING = get_encoding("o200k_base");
 
@@ -161,7 +167,9 @@ export class OpenAIModel extends BaseModel {
     prompt: string,
     toolChoice: ToolChoice,
     tools: Tool[],
-  ): Promise<Result<{ message: Message; tokenCount?: number }, SrchdError>> {
+  ): Promise<
+    Result<{ message: Message; tokenUsage?: TokenUsage }, SrchdError>
+  > {
     try {
       const input = this.messages(messages);
       // console.log("----------------------------------------------");
