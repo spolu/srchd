@@ -42,7 +42,11 @@ export const tokens = sqliteTable("tokens", {
   message: integer("message")
     .notNull()
     .references(() => messages.id),
-  count: integer("count").notNull(),
+  total: integer("count").notNull(),
+  input: integer("input").notNull(),
+  output: integer("output").notNull(),
+  cached: integer("cached"),
+  thinking: integer("reasoning"),
 });
 
 export const agents = sqliteTable(

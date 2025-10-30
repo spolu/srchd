@@ -6,6 +6,7 @@ import { normalizeError, SrchdError } from "../lib/error";
 import { Err, Ok, Result } from "../lib/result";
 import { assertNever } from "../lib/assert";
 import { get_encoding } from "tiktoken";
+import { ThinkChunk$inboundSchema } from "@mistralai/mistralai/models/components";
 
 const ENCODING = get_encoding("o200k_base");
 
@@ -284,12 +285,22 @@ export class OpenAIModel extends BaseModel {
 
       // console.log(response.usage);
 
+      const tokenUsage = response.usage
+        ? {
+            total: response.usage.total_tokens,
+            input: response.usage.input_tokens,
+            output: response.usage.output_tokens,
+            cached: response.usage.input_tokens_details?.cached_tokens,
+            thinking: response.usage.output_tokens_details?.reasoning_tokens,
+          }
+        : undefined;
+
       return new Ok({
         message: {
           role: "agent",
           content,
         },
-        tokenCount: response.usage?.total_tokens,
+        tokenUsage,
       });
     } catch (error) {
       return new Err(

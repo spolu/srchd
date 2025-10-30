@@ -504,7 +504,7 @@ ${this.agent.toJSON().system}`;
       return res;
     }
 
-    const { message, tokenCount } = res.value;
+    const { message, tokenUsage } = res.value;
 
     if (message.content.length === 0) {
       console.log(
@@ -533,8 +533,8 @@ ${this.agent.toJSON().system}`;
     );
     this.messages.push(agentMessage);
 
-    if (tokenCount) {
-      await TokensResource.create(this.agent, agentMessage, tokenCount);
+    if (tokenUsage) {
+      await TokensResource.create(this.agent, agentMessage, tokenUsage);
     } else {
       console.log(
         `WARNING: Skipping token count for agent ${this.agent.toJSON().name}`,

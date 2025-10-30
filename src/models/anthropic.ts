@@ -12,6 +12,7 @@ import { normalizeError, SrchdError } from "../lib/error";
 import { Err, Ok, Result } from "../lib/result";
 import { assertNever } from "../lib/assert";
 import { removeNulls } from "../lib/utils";
+import { TokenUsage } from "../lib/token";
 
 const DEFAULT_LOW_THINKING_TOKENS = 4096;
 const DEFAULT_HIGH_THINKING_TOKENS = 8192;
@@ -155,7 +156,9 @@ export class AnthropicModel extends BaseModel {
     prompt: string,
     toolChoice: ToolChoice,
     tools: Tool[],
-  ): Promise<Result<{ message: Message; tokenCount?: number }, SrchdError>> {
+  ): Promise<
+    Result<{ message: Message; tokenUsage?: TokenUsage }, SrchdError>
+  > {
     try {
       const message = await this.client.messages.create({
         model: this.model,
@@ -216,6 +219,12 @@ export class AnthropicModel extends BaseModel {
         },
       });
 
+      const tokenUsage = {
+        total: message.usage.output_tokens + message.usage.input_tokens,
+        input: message.usage.input_tokens,
+        output: message.usage.output_tokens,
+        cached: message.usage.cache_read_input_tokens ?? undefined,
+      };
       // console.log(message.usage);
 
       return new Ok({
@@ -272,7 +281,7 @@ export class AnthropicModel extends BaseModel {
             }),
           ),
         },
-        tokenCount: message.usage.output_tokens, // also inlcude cached or input tokens ?
+        tokenUsage, // also inlcude cached or input tokens ?
       });
     } catch (error) {
       return new Err(

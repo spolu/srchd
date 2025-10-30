@@ -15,6 +15,7 @@ import { assertNever } from "../lib/assert";
 import { Mistral } from "@mistralai/mistralai";
 import type { ChatCompletionStreamRequest } from "@mistralai/mistralai/models/components";
 import { removeNulls } from "../lib/utils";
+import { TokenUsage } from "../lib/token";
 
 type MistralMessage = ChatCompletionStreamRequest["messages"][number];
 
@@ -133,7 +134,9 @@ export class MistralModel extends BaseModel {
     prompt: string,
     toolChoice: ToolChoice,
     tools: Tool[],
-  ): Promise<Result<{ message: Message; tokenCount?: number }, SrchdError>> {
+  ): Promise<
+    Result<{ message: Message; tokenUsage?: TokenUsage }, SrchdError>
+  > {
     try {
       const chatResponse = await this.client.chat.complete({
         model: this.model,
@@ -154,6 +157,17 @@ export class MistralModel extends BaseModel {
           },
         })),
       });
+
+      const usage = chatResponse.usage;
+
+      const tokenUsage =
+        !usage.totalTokens || !usage.promptTokens || !usage.completionTokens
+          ? undefined
+          : {
+              total: usage.totalTokens,
+              input: usage.promptTokens,
+              output: usage.completionTokens,
+            };
 
       const msg = chatResponse.choices[0].message;
       const finishReason = chatResponse.choices[0].finishReason;
@@ -224,7 +238,7 @@ export class MistralModel extends BaseModel {
           role: "agent",
           content,
         },
-        tokenCount: chatResponse.usage.totalTokens,
+        tokenUsage,
       });
     } catch (error) {
       return new Err(

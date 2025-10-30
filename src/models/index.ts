@@ -2,6 +2,7 @@ import type { JSONSchema7 as JSONSchema } from "json-schema";
 import { Result } from "../lib/result";
 import { SrchdError } from "../lib/error";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types";
+import { TokenUsage } from "../lib/token";
 
 export type provider = "gemini" | "anthropic" | "openai" | "mistral";
 export function isProvider(str: string): str is provider {
@@ -83,7 +84,7 @@ export abstract class BaseModel {
     prompt: string,
     toolChoice: ToolChoice,
     tools: Tool[],
-  ): Promise<Result<{ message: Message; tokenCount?: number }, SrchdError>>;
+  ): Promise<Result<{ message: Message; tokenUsage?: TokenUsage }, SrchdError>>;
 
   abstract tokens(
     messages: Message[],

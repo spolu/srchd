@@ -163,9 +163,18 @@ export class GeminiModel extends BaseModel {
             role: "agent",
             content: [],
           },
-          tokenCount: response.usageMetadata?.totalTokenCount,
         });
       }
+
+      const tokenUsage = response.usageMetadata
+        ? {
+            total: response.usageMetadata.totalTokenCount,
+            input: response.usageMetadata.promptTokenCount,
+            output: response.usageMetadata.candidatesTokenCount,
+            cached: response.usageMetadata.cachedContentTokenCount,
+            thinking: response.usageMetadata.thoughtsTokenCount,
+          }
+        : undefined;
 
       return new Ok({
         message: {
@@ -219,7 +228,7 @@ export class GeminiModel extends BaseModel {
             }),
           ),
         },
-        tokenCount: response.usageMetadata?.totalTokenCount,
+        tokenUsage,
       });
     } catch (error) {
       return new Err(
