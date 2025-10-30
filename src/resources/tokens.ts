@@ -20,7 +20,7 @@ export class TokensResource {
     this.message = message;
   }
 
-  static async getAgentTokenCount(agent: AgentResource): Promise<TokenUsage> {
+  static async getAgentTokenUsage(agent: AgentResource): Promise<TokenUsage> {
     const results = await db
       .select()
       .from(tokens)
@@ -55,6 +55,8 @@ export class TokensResource {
         },
       );
   }
+
+  static async getExperiment
 
   static async create(
     agent: AgentResource,
