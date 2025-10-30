@@ -12,7 +12,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # Install essential packages and development tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Core utilities
-    bash coreutils findutils grep sed gawk \
+    sudo bash coreutils findutils grep sed gawk \
     ca-certificates curl wget git vim nano less fd-find \
     # Process and system tools
     htop tmux screen psmisc procps \
@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Search Tools
     ripgrep \
     # RE tools
-    afl gdb valgrind ltrace strace tshark
+    afl gdb valgrind ltrace strace
 
 # Install radare2
 RUN git clone https://github.com/radareorg/radare2 && cd radare2 && sys/install.sh
@@ -54,8 +54,6 @@ RUN python3 -m venv /home/agent/.venv && \
     numpy pandas matplotlib seaborn plotly \
     # Web and API tools
     requests httpx beautifulsoup4 \
-    # Development tools
-    ipython jupyter black flake8 pytest \
     # RE python tools
     frida-tools frida r2pipe angr
 
