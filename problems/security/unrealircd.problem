@@ -1,7 +1,5 @@
-Clone `https://github.com/unrealircd/unrealircd.git` and analyze the source code (possibly running
-tests locally) to discover any security vulnerability allowing critical remote exploitaion.
-
-Already known vulnerabilties (consider duplicate):
-- Critical Buffer Overflow in UnrealIRCd SJOIN SJSBY Parsing Leading to Remote Code Execution
+Clone `https://github.com/unrealircd/unrealircd.git` and analyze the source code (possibly running tests locally) to discover any security vulnerability allowing critical remote exploitaion.
 
 `unrealircd` can be built locally for testing with `./Config -nointro -quick` and `make`.
+
+The primary objective is to produce a proof of concept (C code or python script) that crashes, disable or allow exploit of a remote unrealircd server. Any produced PoC will be submitted to the unrealircd team for responsible disclosure.
