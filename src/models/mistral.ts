@@ -17,7 +17,6 @@ import { Mistral } from "@mistralai/mistralai";
 import type {
   ChatCompletionStreamRequest,
   ContentChunk,
-  TextChunk,
   ToolCall,
 } from "@mistralai/mistralai/models/components";
 import { removeNulls } from "../lib/utils";
@@ -53,69 +52,58 @@ export class MistralModel extends BaseModel {
   messages(messages: Message[]) {
     const mistralMessages: MistralMessage[] = [];
 
-    const agentMessageFromAccumulatedContent = (
-      content: ContentChunk[],
-      toolCalls: ToolCall[],
-    ) => {
-      if (content.length > 0 || toolCalls.length > 0) {
-        mistralMessages.push({
-          role: "assistant",
-          content,
-          toolCalls,
-        });
-      }
-    };
-
     for (const msg of messages) {
       switch (msg.role) {
         case "user":
-          mistralMessages.push({
-            role: "user",
-            content: msg.content
-              .filter((c) => c.type === "text")
-              .map((c) => ({
+          if (msg.content.every((c) => c.type === "text")) {
+            mistralMessages.push({
+              role: "user",
+              content: msg.content.map((c) => ({
                 type: "text",
                 text: c.text,
               })),
-          });
+            });
+          } else if (msg.content.every((c) => c.type === "tool_result")) {
+            for (const toolResult of msg.content) {
+              mistralMessages.push({
+                role: "tool",
+                toolCallId: toolResult.toolUseId,
+                name: toolResult.toolUseName,
+                content: toolResult.content as ContentChunk[],
+              });
+            }
+          } else {
+            console.log(
+              "Unexpected user message",
+              JSON.stringify(msg, null, 2),
+            );
+          }
           break;
         case "agent":
-          let content: ContentChunk[] = [];
-          let toolCalls: ToolCall[] = [];
-          for (const c of msg.content) {
-            switch (c.type) {
-              case "tool_result":
-                agentMessageFromAccumulatedContent(content, toolCalls);
-                content = [];
-                toolCalls = [];
-                mistralMessages.push({
-                  role: "tool",
-                  toolCallId: c.toolUseId,
-                  name: c.toolUseName,
-                  content: c.content as ContentChunk[],
-                });
-                break;
-              case "text":
-                content.push({
-                  type: "text",
-                  text: c.text,
-                });
-                break;
-              case "tool_use":
-                toolCalls.push({
-                  id: c.id,
-                  type: "function",
-                  function: {
-                    name: c.name,
-                    arguments: c.input,
-                  },
-                });
-                break;
-              default:
-                continue;
-            }
-          }
-          agentMessageFromAccumulatedContent(content, toolCalls);
+          mistralMessages.push({
+            role: "assistant",
+            content: msg.content
+              .filter((c) => c.type === "text") // We don't support thinking atm
+              .map((c) => {
+                switch (c.type) {
+                  case "text":
+                    return {
+                      type: "text",
+                      text: c.text,
+                    };
+                }
+              }),
+            toolCalls: msg.content
+              .filter((c) => c.type === "tool_use")
+              .map((c) => ({
+                id: c.id,
+                type: "function",
+                function: {
+                  name: c.name,
+                  arguments: c.input,
+                },
+              })),
+          });
       }
     }
 
@@ -129,6 +117,7 @@ export class MistralModel extends BaseModel {
     tools: Tool[],
   ): Promise<Result<Message, SrchdError>> {
     try {
+      //console.log(JSON.stringify(this.messages(messages), null, 2));
       const chatResponse = await this.client.chat.complete({
         model: this.model,
         messages: [
