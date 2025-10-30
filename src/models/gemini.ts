@@ -17,6 +17,7 @@ import { Err, Ok, Result } from "../lib/result";
 import { normalizeError, SrchdError } from "../lib/error";
 import { assertNever } from "../lib/assert";
 import { removeNulls } from "../lib/utils";
+import { TokenUsage } from "../lib/token";
 
 export type GeminiModels =
   | "gemini-2.5-pro"
@@ -102,7 +103,9 @@ export class GeminiModel extends BaseModel {
     prompt: string,
     toolChoice: ToolChoice,
     tools: Tool[],
-  ): Promise<Result<{ message: Message; tokenCount?: number }, SrchdError>> {
+  ): Promise<
+    Result<{ message: Message; tokenUsage?: TokenUsage }, SrchdError>
+  > {
     try {
       const response = await this.client.models.generateContent({
         model: this.model,
@@ -166,15 +169,19 @@ export class GeminiModel extends BaseModel {
         });
       }
 
-      const tokenUsage = response.usageMetadata
-        ? {
-            total: response.usageMetadata.totalTokenCount,
-            input: response.usageMetadata.promptTokenCount,
-            output: response.usageMetadata.candidatesTokenCount,
-            cached: response.usageMetadata.cachedContentTokenCount,
-            thinking: response.usageMetadata.thoughtsTokenCount,
-          }
-        : undefined;
+      const tokenUsage =
+        response.usageMetadata &&
+        response.usageMetadata.totalTokenCount &&
+        response.usageMetadata.promptTokenCount &&
+        response.usageMetadata.candidatesTokenCount
+          ? {
+              total: response.usageMetadata.totalTokenCount,
+              input: response.usageMetadata.promptTokenCount,
+              output: response.usageMetadata.candidatesTokenCount,
+              cached: response.usageMetadata.cachedContentTokenCount,
+              thinking: response.usageMetadata.thoughtsTokenCount,
+            }
+          : undefined;
 
       return new Ok({
         message: {
