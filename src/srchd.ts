@@ -15,6 +15,7 @@ import { isGeminiModel } from "./models/gemini";
 import { serve } from "@hono/node-server";
 import app from "./server";
 import { isMistralModel } from "./models/mistral";
+import { TokensResource } from "./resources/tokens";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(
@@ -82,6 +83,38 @@ experimentCmd
         return e;
       }),
     );
+  });
+
+experimentCmd
+  .command("token-usage")
+  .description("Show token usage for an experiment")
+  .requiredOption("-e, --experiment <experiment>", "Experiment name")
+  .action(async (options) => {
+    const experiment = await ExperimentResource.findByName(options.experiment);
+    if (!experiment) {
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `Experiment '${options.experiment}' not found.`,
+          ),
+        ),
+      );
+    }
+
+    const tokenUsage = await TokensResource.getExperimentTokenUsage(experiment);
+    if (!tokenUsage) {
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `No token usage found for experiment '${options.experiment}'.`,
+          ),
+        ),
+      );
+    }
+
+    console.table([tokenUsage]);
   });
 
 // Agent commands
