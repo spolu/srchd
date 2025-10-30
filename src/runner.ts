@@ -9,6 +9,7 @@ import {
   ToolUse,
 } from "./models";
 import { AgentResource } from "./resources/agent";
+import { TokensResource } from "./resources/tokens";
 import { ExperimentResource } from "./resources/experiment";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { normalizeError, SrchdError } from "./lib/error";
@@ -152,7 +153,6 @@ export class Runner {
     model: BaseModel,
   ): Promise<Result<Runner, SrchdError>> {
     const runner = new Runner(experiment, agent, mcpClients, model);
-
     const messages = await MessageResource.listMessagesByAgent(
       runner.experiment,
       runner.agent,
@@ -371,26 +371,19 @@ This is an automated system message. There is no user available to respond. Proc
         .slice(this.lastAgenticLoopStartPosition)
         .map((m) => m.toJSON());
 
-      const res = await this.model.tokens(
-        messages,
-        systemPrompt,
-        "auto",
-        tools,
-      );
+      tokenCount = await TokensResource.getAgentTokenCount(this.agent);
+      // console.log("TOKEN COUNT: " + tokenCount);
+
+      if (this.messages.length === 0) {
+        return new Ok(messages);
+      }
+
+      const lastMessage = messages[messages.length - 1];
+      const res = await this.model.tokens(lastMessage);
       if (res.isErr()) {
-        console.log(
-          "Agent: " + this.agent.toJSON().name + " " + this.agent.toJSON().id,
-        );
-        console.log(messages.length);
-        messages.forEach((m) => {
-          console.log(m.role);
-          console.log(m.content);
-          console.log("----");
-        });
         return res;
       }
-      tokenCount = res.value;
-      // console.log("TOKEN COUNT: " + tokenCount);
+      tokenCount += res.value;
 
       if (tokenCount > this.model.maxTokens()) {
         const res = this.shiftLastAgenticLoopStartPosition();
@@ -485,17 +478,18 @@ ${this.agent.toJSON().system}`;
       return messagesForModel;
     }
 
-    const m = await this.model.run(
+    const res = await this.model.run(
       messagesForModel.value,
       systemPrompt,
       "auto",
       tools.value,
     );
-    if (m.isErr()) {
-      return m;
+    if (res.isErr()) {
+      return res;
     }
+    const { message, tokenCount } = res.value;
 
-    if (m.value.content.length === 0) {
+    if (message.content.length === 0) {
       console.log(
         `WARNING: Skipping empty agent response content for agent ${
           this.agent.toJSON().name
@@ -505,7 +499,7 @@ ${this.agent.toJSON().system}`;
     }
 
     const toolResults = await concurrentExecutor(
-      m.value.content.filter((content) => content.type === "tool_use"),
+      message.content.filter((content) => content.type === "tool_use"),
       async (t: ToolUse) => {
         return await this.executeTool(t);
       },
@@ -517,12 +511,23 @@ ${this.agent.toJSON().system}`;
     const agentMessage = await MessageResource.create(
       this.experiment,
       this.agent,
-      m.value,
+      message,
       last.position() + 1,
     );
     this.messages.push(agentMessage);
 
-    m.value.content.forEach((c) => {
+    if (tokenCount) {
+      console.log(
+        `INFO: Token count for agent ${this.agent.toJSON().name}: ${tokenCount}`,
+      );
+      await TokensResource.create(this.agent, agentMessage, tokenCount);
+    } else {
+      console.log(
+        `WARNING: Skipping token count for agent ${this.agent.toJSON().name}`,
+      );
+    }
+
+    message.content.forEach((c) => {
       this.logContent(c, agentMessage.toJSON().id);
     });
 

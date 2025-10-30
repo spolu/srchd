@@ -155,7 +155,7 @@ export class AnthropicModel extends BaseModel {
     prompt: string,
     toolChoice: ToolChoice,
     tools: Tool[],
-  ): Promise<Result<Message, SrchdError>> {
+  ): Promise<Result<{ message: Message; tokenCount?: number }, SrchdError>> {
     try {
       const message = await this.client.messages.create({
         model: this.model,
@@ -219,57 +219,60 @@ export class AnthropicModel extends BaseModel {
       // console.log(message.usage);
 
       return new Ok({
-        role: message.role === "assistant" ? "agent" : "user",
-        content: removeNulls(
-          message.content.map((c) => {
-            switch (c.type) {
-              case "text":
-                return {
-                  type: "text",
-                  text: c.text,
-                  provider: null,
-                };
-              case "tool_use":
-                return {
-                  type: "tool_use",
-                  id: c.id,
-                  name: c.name,
-                  input: c.input,
-                  provider: null,
-                };
-              case "thinking": {
-                return {
-                  type: "thinking",
-                  thinking: c.thinking,
-                  provider: {
-                    anthropic: {
-                      type: c.type,
-                      signature: c.signature,
+        message: {
+          role: message.role === "assistant" ? "agent" : "user",
+          content: removeNulls(
+            message.content.map((c) => {
+              switch (c.type) {
+                case "text":
+                  return {
+                    type: "text",
+                    text: c.text,
+                    provider: null,
+                  };
+                case "tool_use":
+                  return {
+                    type: "tool_use",
+                    id: c.id,
+                    name: c.name,
+                    input: c.input,
+                    provider: null,
+                  };
+                case "thinking": {
+                  return {
+                    type: "thinking",
+                    thinking: c.thinking,
+                    provider: {
+                      anthropic: {
+                        type: c.type,
+                        signature: c.signature,
+                      },
                     },
-                  },
-                };
-              }
-              case "redacted_thinking": {
-                return {
-                  type: "thinking",
-                  thinking: "<redacted>",
-                  provider: {
-                    anthropic: {
-                      type: c.type,
-                      data: c.data,
+                  };
+                }
+                case "redacted_thinking": {
+                  return {
+                    type: "thinking",
+                    thinking: "<redacted>",
+                    provider: {
+                      anthropic: {
+                        type: c.type,
+                        data: c.data,
+                      },
                     },
-                  },
-                };
+                  };
+                }
+                case "server_tool_use":
+                case "web_search_tool_result": {
+                  return null;
+                }
+                default:
+                  assertNever(c);
               }
-              case "server_tool_use":
-              case "web_search_tool_result": {
-                return null;
-              }
-              default:
-                assertNever(c);
-            }
-          }),
-        ),
+            }),
+          ),
+        },
+        tokenCount: message.usage.output_tokens, // also inlcude cached or input tokens ?
       });
     } catch (error) {
       return new Err(
@@ -282,17 +285,11 @@ export class AnthropicModel extends BaseModel {
     }
   }
 
-  async tokens(
-    messages: Message[],
-    prompt: string,
-    toolChoice: ToolChoice,
-    tools: Tool[],
-  ): Promise<Result<number, SrchdError>> {
+  async tokens(message: Message): Promise<Result<number, SrchdError>> {
     try {
       const response = await this.client.messages.countTokens({
         model: this.model,
-        messages: this.messages(messages),
-        system: prompt,
+        messages: this.messages([message]),
         thinking: (() => {
           switch (this.config.thinking) {
             case undefined:
@@ -313,14 +310,6 @@ export class AnthropicModel extends BaseModel {
             }
           }
         })(),
-        tools: tools.map((tool) => ({
-          name: tool.name,
-          description: tool.description,
-          input_schema: tool.inputSchema as any,
-        })),
-        tool_choice: {
-          type: toolChoice,
-        },
       });
 
       return new Ok(response.input_tokens);

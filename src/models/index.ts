@@ -1,5 +1,5 @@
 import type { JSONSchema7 as JSONSchema } from "json-schema";
-import { Result } from "../lib/result";
+import { Ok, Result } from "../lib/result";
 import { SrchdError } from "../lib/error";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types";
 
@@ -46,7 +46,7 @@ export interface Message {
 }
 
 export function isUserMessageWithText(
-  message: Message
+  message: Message,
 ): message is Message & { content: TextContent[] } {
   return (
     message.role === "user" && message.content.every((c) => c.type === "text")
@@ -82,15 +82,31 @@ export abstract class BaseModel {
     messages: Message[],
     prompt: string,
     toolChoice: ToolChoice,
-    tools: Tool[]
-  ): Promise<Result<Message, SrchdError>>;
+    tools: Tool[],
+  ): Promise<Result<{ message: Message; tokenCount?: number }, SrchdError>>;
 
-  abstract tokens(
-    messages: Message[],
-    prompt: string,
-    toolChoice: ToolChoice,
-    tools: Tool[]
-  ): Promise<Result<number, SrchdError>>;
+  async tokens(message: Message): Promise<Result<number, SrchdError>> {
+    // Default implementation of an approximate token count.
+    return new Ok(
+      message.content
+        .map((c) => {
+          switch (c.type) {
+            case "text":
+              return c.text.length;
+            case "tool_use":
+              return JSON.stringify(c.input).length;
+            case "tool_result":
+              return c.content
+                .filter((c) => c.type === "text")
+                .map((c) => c.text.length)
+                .reduce((a, b) => a + b, 0);
+            case "thinking":
+              return c.thinking.length;
+          }
+        })
+        .reduce((a, b) => a + b, 0),
+    );
+  }
 
   abstract maxTokens(): number;
 }

@@ -102,7 +102,7 @@ export class GeminiModel extends BaseModel {
     prompt: string,
     toolChoice: ToolChoice,
     tools: Tool[],
-  ): Promise<Result<Message, SrchdError>> {
+  ): Promise<Result<{ message: Message; tokenCount?: number }, SrchdError>> {
     try {
       const response = await this.client.models.generateContent({
         model: this.model,
@@ -159,31 +159,52 @@ export class GeminiModel extends BaseModel {
       const content = candidate.content;
       if (!content) {
         return new Ok({
-          role: "agent",
-          content: [],
+          message: {
+            role: "agent",
+            content: [],
+          },
         });
       }
 
       return new Ok({
-        role: content.role === "model" ? "agent" : "user",
-        content: removeNulls(
-          (content.parts || []).map((part) => {
-            if (part.text) {
-              if (part.thought) {
-                return {
-                  type: "thinking",
-                  thinking: part.text,
-                  provider: {
-                    gemini: {
-                      thought: true,
-                      thoughtSignature: part.thoughtSignature,
+        message: {
+          role: content.role === "model" ? "agent" : "user",
+          content: removeNulls(
+            (content.parts || []).map((part) => {
+              if (part.text) {
+                if (part.thought) {
+                  return {
+                    type: "thinking",
+                    thinking: part.text,
+                    provider: {
+                      gemini: {
+                        thought: true,
+                        thoughtSignature: part.thoughtSignature,
+                      },
                     },
-                  },
-                };
-              } else {
-                const c: TextContent = {
-                  type: "text",
-                  text: part.text,
+                  };
+                } else {
+                  const c: TextContent = {
+                    type: "text",
+                    text: part.text,
+                    provider: null,
+                  };
+                  if (part.thoughtSignature) {
+                    c.provider = {
+                      gemini: { thoughtSignature: part.thoughtSignature },
+                    };
+                  }
+                  return c;
+                }
+              }
+              if (part.functionCall) {
+                const c: ToolUse = {
+                  type: "tool_use",
+                  id:
+                    part.functionCall.id ??
+                    `tool_use_${Math.random().toString(36).substring(2)}`,
+                  name: part.functionCall.name ?? "tool_use_gemini_no_name",
+                  input: part.functionCall.args,
                   provider: null,
                 };
                 if (part.thoughtSignature) {
@@ -193,27 +214,11 @@ export class GeminiModel extends BaseModel {
                 }
                 return c;
               }
-            }
-            if (part.functionCall) {
-              const c: ToolUse = {
-                type: "tool_use",
-                id:
-                  part.functionCall.id ??
-                  `tool_use_${Math.random().toString(36).substring(2)}`,
-                name: part.functionCall.name ?? "tool_use_gemini_no_name",
-                input: part.functionCall.args,
-                provider: null,
-              };
-              if (part.thoughtSignature) {
-                c.provider = {
-                  gemini: { thoughtSignature: part.thoughtSignature },
-                };
-              }
-              return c;
-            }
-            return null;
-          }),
-        ),
+              return null;
+            }),
+          ),
+        },
+        tokenCount: response.usageMetadata?.totalTokenCount,
       });
     } catch (error) {
       return new Err(
@@ -226,22 +231,11 @@ export class GeminiModel extends BaseModel {
     }
   }
 
-  async tokens(
-    messages: Message[],
-    prompt: string,
-    toolChoice: ToolChoice,
-    tools: Tool[],
-  ): Promise<Result<number, SrchdError>> {
+  async tokens(message: Message): Promise<Result<number, SrchdError>> {
     try {
       const response = await this.client.models.countTokens({
         model: this.model,
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }],
-          },
-          ...this.contents(messages),
-        ],
+        contents: this.contents([message]),
         config: {
           // No tools for countTokens
         },

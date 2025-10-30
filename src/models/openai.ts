@@ -160,7 +160,7 @@ export class OpenAIModel extends BaseModel {
     prompt: string,
     toolChoice: ToolChoice,
     tools: Tool[],
-  ): Promise<Result<Message, SrchdError>> {
+  ): Promise<Result<{ message: Message; tokenCount?: number }, SrchdError>> {
     try {
       const input = this.messages(messages);
       // console.log("----------------------------------------------");
@@ -282,11 +282,14 @@ export class OpenAIModel extends BaseModel {
         })
         .flat();
 
-      // console.log(response.usage);
+      const tokenCount = response.usage?.total_tokens;
 
       return new Ok({
-        role: "agent",
-        content,
+        message: {
+          role: "agent",
+          content,
+        },
+        tokenCount,
       });
     } catch (error) {
       return new Err(
@@ -299,38 +302,28 @@ export class OpenAIModel extends BaseModel {
     }
   }
 
-  async tokens(
-    messages: Message[],
-    prompt: string,
-    toolChoice: ToolChoice,
-    tools: Tool[],
-  ): Promise<Result<number, SrchdError>> {
-    const tokenCount =
-      ENCODING.encode(prompt).length +
-      ENCODING.encode(JSON.stringify(tools)).length +
-      messages
-        .map((msg) => {
-          return msg.content.map((content) => {
-            switch (content.type) {
-              case "text": {
-                return ENCODING.encode(content.text).length;
-              }
-              case "tool_use": {
-                return ENCODING.encode(JSON.stringify(content.input)).length;
-              }
-              case "tool_result": {
-                return ENCODING.encode(JSON.stringify(content.content)).length;
-              }
-              case "thinking": {
-                return ENCODING.encode(content.thinking).length;
-              }
+  async tokens(message: Message): Promise<Result<number, SrchdError>> {
+    return new Ok(
+      message.content
+        .map((content) => {
+          switch (content.type) {
+            case "text": {
+              return ENCODING.encode(content.text).length;
             }
-          });
+            case "tool_use": {
+              return ENCODING.encode(JSON.stringify(content.input)).length;
+            }
+            case "tool_result": {
+              return ENCODING.encode(JSON.stringify(content.content)).length;
+            }
+            case "thinking": {
+              return ENCODING.encode(content.thinking).length;
+            }
+          }
         })
         .flat()
-        .reduce((a, b) => a + b, 0);
-
-    return new Ok(tokenCount);
+        .reduce((a, b) => a + b, 0),
+    );
   }
 
   maxTokens(): number {

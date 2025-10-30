@@ -11,7 +11,7 @@ export class MessageResource {
 
   private constructor(
     data: InferSelectModel<typeof messages>,
-    experiment: ExperimentResource
+    experiment: ExperimentResource,
   ) {
     this.data = data;
     this.experiment = experiment;
@@ -20,7 +20,7 @@ export class MessageResource {
   static async findById(
     experiment: ExperimentResource,
     agent: AgentResource,
-    id: number
+    id: number,
   ): Promise<MessageResource | null> {
     const result = await db
       .select()
@@ -29,8 +29,8 @@ export class MessageResource {
         and(
           eq(messages.experiment, experiment.toJSON().id),
           eq(messages.agent, agent.toJSON().id),
-          eq(messages.id, id)
-        )
+          eq(messages.id, id),
+        ),
       )
       .limit(1);
 
@@ -39,7 +39,7 @@ export class MessageResource {
 
   static async listMessagesByAgent(
     experiment: ExperimentResource,
-    agent: AgentResource
+    agent: AgentResource,
   ): Promise<MessageResource[]> {
     const results = await db
       .select()
@@ -47,8 +47,8 @@ export class MessageResource {
       .where(
         and(
           eq(messages.experiment, experiment.toJSON().id),
-          eq(messages.agent, agent.toJSON().id)
-        )
+          eq(messages.agent, agent.toJSON().id),
+        ),
       )
       .orderBy(asc(messages.position));
 
@@ -60,7 +60,7 @@ export class MessageResource {
     agent: AgentResource,
     message: Message,
     positon: number,
-    options?: { tx?: Tx }
+    options?: { tx?: Tx },
   ): Promise<MessageResource> {
     const executor = options?.tx ?? db;
     const [created] = await executor
@@ -74,6 +74,10 @@ export class MessageResource {
       .returning();
 
     return new MessageResource(created, experiment);
+  }
+
+  id(): number {
+    return this.data.id;
   }
 
   position(): number {
