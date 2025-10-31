@@ -8,10 +8,9 @@ import { ExperimentResource } from "./experiment";
 
 export class TokenUsageResource {
   private data: InferSelectModel<typeof token_usages>;
+  experiment: ExperimentResource;
   agent: AgentResource;
   message: MessageResource;
-  experiment: ExperimentResource;
-
   private constructor(
     data: InferSelectModel<typeof token_usages>,
     experiment: ExperimentResource,
@@ -95,31 +94,5 @@ export class TokenUsageResource {
       .returning();
 
     return new TokenUsageResource(created, experiment, agent, message);
-  }
-
-  id(): number {
-    return this.data.id;
-  }
-
-  toJSON(): {
-    id: number;
-    usage: TokenUsage;
-    experiment: number;
-    agent: number;
-    message: number;
-  } {
-    return {
-      id: this.data.id,
-      experiment: this.data.experiment,
-      agent: this.data.agent,
-      message: this.data.message,
-      usage: {
-        total: this.data.total,
-        input: this.data.input,
-        output: this.data.output,
-        cached: this.data.cached,
-        thinking: this.data.thinking,
-      },
-    };
   }
 }
