@@ -22,7 +22,7 @@ submitted=${review.created?.toISOString() || ""}`;
 
 export const publicationHeader = (
   publication: PublicationResource,
-  { withAbstract }: { withAbstract: boolean }
+  { withAbstract }: { withAbstract: boolean },
 ) => {
   return (
     `\
@@ -35,7 +35,7 @@ reviews:${publication
       .reviews.map(
         (r) =>
           `${r.grade || "PENDING"}` +
-          (r.created ? ` (${r.created.toISOString()})` : "")
+          (r.created ? ` (${r.created.toISOString()})` : ""),
       )
       .join(", ")}
 status=${publication.toJSON().status}
@@ -52,7 +52,7 @@ export const renderListOfPublications = (
     withAbstract,
   }: {
     withAbstract: boolean;
-  }
+  },
 ) => {
   if (publications.length === 0) {
     return "(0 found)";
@@ -66,7 +66,7 @@ export const renderListOfPublications = (
 
 export async function createPublicationsServer(
   experiment: ExperimentResource,
-  agent: AgentResource
+  agent: AgentResource,
 ): Promise<McpServer> {
   const server = new McpServer({
     name: SERVER_NAME,
@@ -87,19 +87,19 @@ export async function createPublicationsServer(
 Ordering to use:
 \`latest\` lists the most recent publications.
 \`citations\` lists the most cited publications.
-Defaults to \`latest\`.`
+Defaults to \`latest\`.`,
         ),
       status: z
         .enum(["PUBLISHED", "SUBMITTED", "REJECTED"])
         .optional()
         .describe(
-          `The status of the publications to list. Defaults to \`PUBLISHED\``
+          `The status of the publications to list. Defaults to \`PUBLISHED\``,
         ),
       withAbstract: z
         .boolean()
         .optional()
         .describe(
-          "Whether to include the abstract in the listing. Defaults to true."
+          "Whether to include the abstract in the listing. Defaults to true.",
         ),
       limit: z
         .number()
@@ -124,7 +124,7 @@ Defaults to \`latest\`.`
           status,
           limit,
           offset,
-        }
+        },
       );
 
       return {
@@ -138,7 +138,7 @@ Defaults to \`latest\`.`
           },
         ],
       };
-    }
+    },
   );
 
   server.tool(
@@ -150,11 +150,11 @@ Defaults to \`latest\`.`
     async ({ reference }) => {
       const publication = await PublicationResource.findByReference(
         experiment,
-        reference
+        reference,
       );
       if (!publication) {
         return errorToCallToolResult(
-          new SrchdError("not_found_error", "Publication not found")
+          new SrchdError("not_found_error", "Publication not found"),
         );
       }
 
@@ -183,7 +183,7 @@ ${r.content}`;
           },
         ],
       };
-    }
+    },
   );
 
   server.tool(
@@ -197,21 +197,21 @@ ${r.content}`;
       content: z
         .string()
         .describe(
-          "Full content of the publication. Use [{ref}] or [{ref},{ref}] inlined in content for citations."
+          "Full content of the publication. Use [{ref}] or [{ref},{ref}] inlined in content for citations.",
         ),
     },
     async ({ title, abstract, content }) => {
       const pendingReviews =
         await PublicationResource.listByExperimentAndReviewRequested(
           experiment,
-          agent
+          agent,
         );
       if (pendingReviews.length > 0) {
         return errorToCallToolResult(
           new SrchdError(
             "publication_error",
-            "You have pending reviews. Please complete them before submitting a new publication."
-          )
+            "You have pending reviews. Please complete them before submitting a new publication.",
+          ),
         );
       }
 
@@ -219,7 +219,7 @@ ${r.content}`;
       const pool = agents.filter((a) => a.toJSON().id !== agent.toJSON().id);
       if (pool.length < REVIEWER_COUNT) {
         return errorToCallToolResult(
-          new SrchdError("publication_error", "Not enough reviewers available")
+          new SrchdError("publication_error", "Not enough reviewers available"),
         );
       }
       const reviewers = pool
@@ -254,7 +254,7 @@ ${r.content}`;
           },
         ],
       };
-    }
+    },
   );
 
   server.tool(
@@ -265,7 +265,7 @@ ${r.content}`;
       const publications =
         await PublicationResource.listByExperimentAndReviewRequested(
           experiment,
-          agent
+          agent,
         );
 
       return {
@@ -279,7 +279,7 @@ ${r.content}`;
           },
         ],
       };
-    }
+    },
   );
 
   server.tool(
@@ -289,7 +289,7 @@ ${r.content}`;
     async () => {
       const publications = await PublicationResource.listByAuthor(
         experiment,
-        agent
+        agent,
       );
 
       return {
@@ -303,7 +303,7 @@ ${r.content}`;
           },
         ],
       };
-    }
+    },
   );
 
   server.tool(
@@ -321,11 +321,11 @@ ${r.content}`;
     async ({ publication: reference, grade, content }) => {
       const publication = await PublicationResource.findByReference(
         experiment,
-        reference
+        reference,
       );
       if (!publication) {
         return errorToCallToolResult(
-          new SrchdError("not_found_error", "Publication not found")
+          new SrchdError("not_found_error", "Publication not found"),
         );
       }
 
@@ -349,7 +349,7 @@ ${r.content}`;
           },
         ],
       };
-    }
+    },
   );
 
   return server;
