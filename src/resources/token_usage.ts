@@ -21,6 +21,29 @@ export class TokenUsageResource {
     this.message = message;
   }
 
+  static async getExperimentTokenUsage(
+    experiment: ExperimentResource,
+  ): Promise<TokenUsage> {
+    const results = await db
+      .select({
+        total: sum(token_usages.total),
+        input: sum(token_usages.input),
+        output: sum(token_usages.output),
+        cached: sum(token_usages.cached),
+        thinking: sum(token_usages.thinking),
+      })
+      .from(token_usages)
+      .where(eq(token_usages.experiment, experiment.toJSON().id));
+
+    return {
+      total: Number(results[0].total) ?? 0,
+      input: Number(results[0].input) ?? 0,
+      output: Number(results[0].output) ?? 0,
+      cached: Number(results[0].cached) ?? 0,
+      thinking: Number(results[0].thinking) ?? 0,
+    };
+  }
+
   static async getAgentTokenUsage(
     experiment: ExperimentResource,
     agent: AgentResource,

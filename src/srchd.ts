@@ -5,6 +5,7 @@ import { readFileContent } from "./lib/fs";
 import { SrchdError } from "./lib/error";
 import { Err } from "./lib/result";
 import { ExperimentResource } from "./resources/experiment";
+import { TokenUsageResource } from "./resources/token_usage";
 import { AgentResource } from "./resources/agent";
 import { Runner } from "./runner";
 import { newID4, removeNulls } from "./lib/utils";
@@ -16,7 +17,7 @@ import { serve } from "@hono/node-server";
 import app from "./server";
 import { isMistralModel } from "./models/mistral";
 
-const exitWithError = (err: Err<SrchdError>) => {
+export const exitWithError = (err: Err<SrchdError>) => {
   console.error(
     `\x1b[31mError [${err.error.code}] ${err.error.message}\x1b[0m`,
   );
@@ -34,7 +35,7 @@ program
   .version("1.0.0");
 
 // Experiment commands
-const experimentCmd = program
+export const experimentCmd = program
   .command("experiment")
   .description("Manage experiments");
 
@@ -82,6 +83,39 @@ experimentCmd
         return e;
       }),
     );
+  });
+
+experimentCmd
+  .command("token-usage")
+  .description("Show token usage for an experiment")
+  .requiredOption("-e, --experiment <experiment>", "Experiment name")
+  .action(async (options) => {
+    const experiment = await ExperimentResource.findByName(options.experiment);
+    if (!experiment) {
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `Experiment '${options.experiment}' not found.`,
+          ),
+        ),
+      );
+    }
+
+    const tokenUsage =
+      await TokenUsageResource.getExperimentTokenUsage(experiment);
+    if (!tokenUsage) {
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `No token usage found for experiment '${options.experiment}'.`,
+          ),
+        ),
+      );
+    }
+
+    console.table([tokenUsage]);
   });
 
 // Agent commands
