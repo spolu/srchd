@@ -42,7 +42,7 @@ export const tokens = sqliteTable("tokens", {
   message: integer("message")
     .notNull()
     .references(() => messages.id),
-  total: integer("count").notNull(),
+  total: integer("total").notNull(),
   input: integer("input").notNull(),
   output: integer("output").notNull(),
   cached: integer("cached"),

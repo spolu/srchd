@@ -4,7 +4,7 @@ CREATE TABLE `tokens` (
 	`updated` integer NOT NULL,
 	`agent` integer NOT NULL,
 	`message` integer NOT NULL,
-	`count` integer NOT NULL,
+	`total` integer NOT NULL,
 	`input` integer NOT NULL,
 	`output` integer NOT NULL,
 	`cached` integer,

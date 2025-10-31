@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "ed9b1087-abe9-4ca3-bf37-e3be137097f8",
+  "id": "8c871084-0fc7-4430-b8fa-73bedb25c510",
   "prevId": "f65aff28-e150-4641-b639-776049ffd2a5",
   "tables": {
     "agents": {
@@ -825,8 +825,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "count": {
-          "name": "count",
+        "total": {
+          "name": "total",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
