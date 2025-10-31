@@ -37,7 +37,9 @@ Tools to interact with a computer (docker container).
 Dockerfile used to create the computer:
 \`\`\`
 ${dockerFile}
-\`\`\``,
+\`\`\`
+
+Additional programs can be installed using apt-get (with sudo) or source download/compilation.`,
     version: SERVER_VERSION,
   });
 
@@ -50,6 +52,7 @@ Execute a bash command.
 - Run blocking commands as daemons using \`&\`.
 - To search files use \`grep\` or \`rg\`.
 - To read large files, use multi-turn \`sed\`, \`awk\`, \`head\` or \`tail\` to limit the output (e.g. \`sed 1,100p largefile.txt\`).
+- TUI or graphical applications are not supported.
 `,
     {
       cmd: z.string().describe("The bash command to execute."),
