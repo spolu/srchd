@@ -15,5 +15,4 @@ CREATE TABLE `token_usages` (
 	FOREIGN KEY (`message`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `token_usages_experiment_idx` ON `token_usages` (`experiment`);--> statement-breakpoint
-CREATE INDEX `token_usages_agent_idx` ON `token_usages` (`agent`);
+CREATE INDEX `token_usages_idx_experiment_agent` ON `token_usages` (`experiment`,`agent`);

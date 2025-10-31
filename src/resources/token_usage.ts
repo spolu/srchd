@@ -1,4 +1,4 @@
-import { eq, InferSelectModel, inArray, sum } from "drizzle-orm";
+import { eq, InferSelectModel, inArray, sum, and } from "drizzle-orm";
 import { token_usages } from "../db/schema";
 import { AgentResource } from "./agent";
 import { MessageResource } from "./messages";
@@ -21,7 +21,10 @@ export class TokenUsageResource {
     this.message = message;
   }
 
-  static async getAgentTokenUsage(agent: AgentResource): Promise<TokenUsage> {
+  static async getAgentTokenUsage(
+    experiment: ExperimentResource,
+    agent: AgentResource,
+  ): Promise<TokenUsage> {
     const results = await db
       .select({
         total: sum(token_usages.total),
@@ -31,7 +34,12 @@ export class TokenUsageResource {
         thinking: sum(token_usages.thinking),
       })
       .from(token_usages)
-      .where(eq(token_usages.agent, agent.toJSON().id));
+      .where(
+        and(
+          eq(token_usages.agent, agent.toJSON().id),
+          eq(token_usages.experiment, experiment.toJSON().id),
+        ),
+      );
 
     return {
       total: Number(results[0].total) ?? 0,
@@ -46,7 +54,7 @@ export class TokenUsageResource {
     agent: AgentResource,
     experiment: ExperimentResource,
     message: MessageResource,
-    tokenCount: TokenUsage,
+    tokenUsage: TokenUsage,
     options?: { tx?: Tx },
   ): Promise<TokenUsageResource> {
     const executor = options?.tx ?? db;
@@ -56,7 +64,7 @@ export class TokenUsageResource {
         experiment: experiment.toJSON().id,
         message: message.toJSON().id,
         agent: agent.toJSON().id,
-        ...tokenCount,
+        ...tokenUsage,
       })
       .returning();
 
@@ -76,8 +84,8 @@ export class TokenUsageResource {
         total: this.data.total,
         input: this.data.input,
         output: this.data.output,
-        cached: this.data.cached ?? undefined,
-        thinking: this.data.thinking ?? undefined,
+        cached: this.data.cached,
+        thinking: this.data.thinking,
       },
     };
   }

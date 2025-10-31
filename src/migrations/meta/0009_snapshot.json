@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e2803dd3-230c-4064-945b-569e4e7e9f30",
+  "id": "502ec128-00ff-4637-abf9-27f843266da3",
   "prevId": "f65aff28-e150-4641-b639-776049ffd2a5",
   "tables": {
     "agents": {
@@ -869,16 +869,10 @@
         }
       },
       "indexes": {
-        "token_usages_experiment_idx": {
-          "name": "token_usages_experiment_idx",
+        "token_usages_idx_experiment_agent": {
+          "name": "token_usages_idx_experiment_agent",
           "columns": [
-            "experiment"
-          ],
-          "isUnique": false
-        },
-        "token_usages_agent_idx": {
-          "name": "token_usages_agent_idx",
-          "columns": [
+            "experiment",
             "agent"
           ],
           "isUnique": false

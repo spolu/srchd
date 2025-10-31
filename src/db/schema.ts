@@ -53,10 +53,7 @@ export const token_usages = sqliteTable(
     cached: integer("cached").notNull(),
     thinking: integer("thinking").notNull(),
   },
-  (t) => [
-    index("token_usages_experiment_idx").on(t.experiment),
-    index("token_usages_agent_idx").on(t.agent),
-  ],
+  (t) => [index("token_usages_idx_experiment_agent").on(t.experiment, t.agent)],
 );
 
 export const agents = sqliteTable(
