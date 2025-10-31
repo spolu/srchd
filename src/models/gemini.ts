@@ -12,6 +12,7 @@ import {
   ToolChoice,
   TextContent,
   ToolUse,
+  TokenUsage,
 } from "./index";
 import { Err, Ok, Result } from "../lib/result";
 import { normalizeError, SrchdError } from "../lib/error";
@@ -102,7 +103,9 @@ export class GeminiModel extends BaseModel {
     prompt: string,
     toolChoice: ToolChoice,
     tools: Tool[],
-  ): Promise<Result<Message, SrchdError>> {
+  ): Promise<
+    Result<{ message: Message; tokenUsage?: TokenUsage }, SrchdError>
+  > {
     try {
       const response = await this.client.models.generateContent({
         model: this.model,
@@ -159,31 +162,66 @@ export class GeminiModel extends BaseModel {
       const content = candidate.content;
       if (!content) {
         return new Ok({
-          role: "agent",
-          content: [],
+          message: {
+            role: "agent",
+            content: [],
+          },
         });
       }
 
+      const tokenUsage =
+        response.usageMetadata &&
+        response.usageMetadata.totalTokenCount &&
+        response.usageMetadata.promptTokenCount &&
+        response.usageMetadata.candidatesTokenCount
+          ? {
+              total: response.usageMetadata.totalTokenCount,
+              input: response.usageMetadata.promptTokenCount,
+              output: response.usageMetadata.candidatesTokenCount,
+              cached: response.usageMetadata.cachedContentTokenCount ?? 0,
+              thinking: response.usageMetadata.thoughtsTokenCount ?? 0,
+            }
+          : undefined;
+
       return new Ok({
-        role: content.role === "model" ? "agent" : "user",
-        content: removeNulls(
-          (content.parts || []).map((part) => {
-            if (part.text) {
-              if (part.thought) {
-                return {
-                  type: "thinking",
-                  thinking: part.text,
-                  provider: {
-                    gemini: {
-                      thought: true,
-                      thoughtSignature: part.thoughtSignature,
+        message: {
+          role: content.role === "model" ? "agent" : "user",
+          content: removeNulls(
+            (content.parts || []).map((part) => {
+              if (part.text) {
+                if (part.thought) {
+                  return {
+                    type: "thinking",
+                    thinking: part.text,
+                    provider: {
+                      gemini: {
+                        thought: true,
+                        thoughtSignature: part.thoughtSignature,
+                      },
                     },
-                  },
-                };
-              } else {
-                const c: TextContent = {
-                  type: "text",
-                  text: part.text,
+                  };
+                } else {
+                  const c: TextContent = {
+                    type: "text",
+                    text: part.text,
+                    provider: null,
+                  };
+                  if (part.thoughtSignature) {
+                    c.provider = {
+                      gemini: { thoughtSignature: part.thoughtSignature },
+                    };
+                  }
+                  return c;
+                }
+              }
+              if (part.functionCall) {
+                const c: ToolUse = {
+                  type: "tool_use",
+                  id:
+                    part.functionCall.id ??
+                    `tool_use_${Math.random().toString(36).substring(2)}`,
+                  name: part.functionCall.name ?? "tool_use_gemini_no_name",
+                  input: part.functionCall.args,
                   provider: null,
                 };
                 if (part.thoughtSignature) {
@@ -193,27 +231,11 @@ export class GeminiModel extends BaseModel {
                 }
                 return c;
               }
-            }
-            if (part.functionCall) {
-              const c: ToolUse = {
-                type: "tool_use",
-                id:
-                  part.functionCall.id ??
-                  `tool_use_${Math.random().toString(36).substring(2)}`,
-                name: part.functionCall.name ?? "tool_use_gemini_no_name",
-                input: part.functionCall.args,
-                provider: null,
-              };
-              if (part.thoughtSignature) {
-                c.provider = {
-                  gemini: { thoughtSignature: part.thoughtSignature },
-                };
-              }
-              return c;
-            }
-            return null;
-          }),
-        ),
+              return null;
+            }),
+          ),
+        },
+        tokenUsage,
       });
     } catch (error) {
       return new Err(

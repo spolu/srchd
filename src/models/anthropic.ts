@@ -5,6 +5,7 @@ import {
   Message,
   Tool,
   ToolChoice,
+  TokenUsage,
   DEFAULT_MAX_TOKENS,
 } from "./index";
 import Anthropic from "@anthropic-ai/sdk";
@@ -155,7 +156,9 @@ export class AnthropicModel extends BaseModel {
     prompt: string,
     toolChoice: ToolChoice,
     tools: Tool[],
-  ): Promise<Result<Message, SrchdError>> {
+  ): Promise<
+    Result<{ message: Message; tokenUsage?: TokenUsage }, SrchdError>
+  > {
     try {
       const message = await this.client.messages.create({
         model: this.model,
@@ -216,60 +219,70 @@ export class AnthropicModel extends BaseModel {
         },
       });
 
+      const tokenUsage = {
+        total: message.usage.output_tokens + message.usage.input_tokens,
+        input: message.usage.input_tokens,
+        output: message.usage.output_tokens,
+        cached: message.usage.cache_read_input_tokens ?? 0,
+        thinking: 0,
+      };
       // console.log(message.usage);
 
       return new Ok({
-        role: message.role === "assistant" ? "agent" : "user",
-        content: removeNulls(
-          message.content.map((c) => {
-            switch (c.type) {
-              case "text":
-                return {
-                  type: "text",
-                  text: c.text,
-                  provider: null,
-                };
-              case "tool_use":
-                return {
-                  type: "tool_use",
-                  id: c.id,
-                  name: c.name,
-                  input: c.input,
-                  provider: null,
-                };
-              case "thinking": {
-                return {
-                  type: "thinking",
-                  thinking: c.thinking,
-                  provider: {
-                    anthropic: {
-                      type: c.type,
-                      signature: c.signature,
+        message: {
+          role: message.role === "assistant" ? "agent" : "user",
+          content: removeNulls(
+            message.content.map((c) => {
+              switch (c.type) {
+                case "text":
+                  return {
+                    type: "text",
+                    text: c.text,
+                    provider: null,
+                  };
+                case "tool_use":
+                  return {
+                    type: "tool_use",
+                    id: c.id,
+                    name: c.name,
+                    input: c.input,
+                    provider: null,
+                  };
+                case "thinking": {
+                  return {
+                    type: "thinking",
+                    thinking: c.thinking,
+                    provider: {
+                      anthropic: {
+                        type: c.type,
+                        signature: c.signature,
+                      },
                     },
-                  },
-                };
-              }
-              case "redacted_thinking": {
-                return {
-                  type: "thinking",
-                  thinking: "<redacted>",
-                  provider: {
-                    anthropic: {
-                      type: c.type,
-                      data: c.data,
+                  };
+                }
+                case "redacted_thinking": {
+                  return {
+                    type: "thinking",
+                    thinking: "<redacted>",
+                    provider: {
+                      anthropic: {
+                        type: c.type,
+                        data: c.data,
+                      },
                     },
-                  },
-                };
+                  };
+                }
+                case "server_tool_use":
+                case "web_search_tool_result": {
+                  return null;
+                }
+                default:
+                  assertNever(c);
               }
-              case "server_tool_use":
-              case "web_search_tool_result": {
-                return null;
-              }
-              default:
-                assertNever(c);
-            }
-          }),
-        ),
+            }),
+          ),
+        },
+        tokenUsage, // also inlcude cached or input tokens ?
       });
     } catch (error) {
       return new Err(

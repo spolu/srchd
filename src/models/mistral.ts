@@ -7,6 +7,7 @@ import {
   TextContent,
   ToolUse,
   Thinking,
+  TokenUsage,
 } from "./index";
 import { normalizeError, SrchdError } from "../lib/error";
 import { Err, Ok, Result } from "../lib/result";
@@ -133,7 +134,9 @@ export class MistralModel extends BaseModel {
     prompt: string,
     toolChoice: ToolChoice,
     tools: Tool[],
-  ): Promise<Result<Message, SrchdError>> {
+  ): Promise<
+    Result<{ message: Message; tokenUsage?: TokenUsage }, SrchdError>
+  > {
     try {
       const chatResponse = await this.client.chat.complete({
         model: this.model,
@@ -154,6 +157,19 @@ export class MistralModel extends BaseModel {
           },
         })),
       });
+
+      const usage = chatResponse.usage;
+
+      const tokenUsage =
+        !usage.totalTokens || !usage.promptTokens || !usage.completionTokens
+          ? undefined
+          : {
+              total: usage.totalTokens,
+              input: usage.promptTokens,
+              output: usage.completionTokens,
+              cached: 0,
+              thinking: 0,
+            };
 
       const msg = chatResponse.choices[0].message;
       const finishReason = chatResponse.choices[0].finishReason;
@@ -220,8 +236,11 @@ export class MistralModel extends BaseModel {
       }
 
       return new Ok({
-        role: "agent",
-        content,
+        message: {
+          role: "agent",
+          content,
+        },
+        tokenUsage,
       });
     } catch (error) {
       return new Err(

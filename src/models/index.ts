@@ -12,6 +12,14 @@ export const DEFAULT_MAX_TOKENS = 4096;
 
 export type ProviderData = Partial<Record<provider, any>>;
 
+export type TokenUsage = {
+  total: number;
+  input: number;
+  output: number;
+  cached: number;
+  thinking: number;
+};
+
 export interface TextContent {
   type: "text";
   text: string;
@@ -83,7 +91,7 @@ export abstract class BaseModel {
     prompt: string,
     toolChoice: ToolChoice,
     tools: Tool[],
-  ): Promise<Result<Message, SrchdError>>;
+  ): Promise<Result<{ message: Message; tokenUsage?: TokenUsage }, SrchdError>>;
 
   abstract tokens(
     messages: Message[],
