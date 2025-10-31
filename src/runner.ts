@@ -334,7 +334,7 @@ This is an automated system message. There is no user available to respond. Proc
     return new Ok(message);
   }
 
-  private contextPruningAtAgenticLoopStart(): boolean {
+  private innerLoopStartAtAgenticLoopStart(): boolean {
     return (
       this.contextPruning.lastAgenticLoopInnerStartPosition ===
       this.contextPruning.lastAgenticLoopStartPosition
@@ -352,9 +352,9 @@ This is an automated system message. There is no user available to respond. Proc
     //   "this.lastAgenticLoopStartPosition: " + this.lastAgenticLoopStartPosition
     // );
 
-    let idx = this.contextPruningAtAgenticLoopStart()
-      ? this.contextPruning.lastAgenticLoopInnerStartPosition + 1
-      : this.contextPruning.lastAgenticLoopInnerStartPosition;
+    let idx = this.innerLoopStartAtAgenticLoopStart()
+      ? this.contextPruning.lastAgenticLoopInnerStartPosition + 2
+      : this.contextPruning.lastAgenticLoopInnerStartPosition + 1;
 
     let foundNewAgenticLoop = false;
     for (; idx < this.messages.length; idx++) {
@@ -379,6 +379,8 @@ This is an automated system message. There is no user available to respond. Proc
         ),
       );
     }
+
+    console.log("MOVING TO: " + idx);
 
     if (foundNewAgenticLoop) {
       this.contextPruning.lastAgenticLoopStartPosition = idx;
@@ -406,7 +408,7 @@ This is an automated system message. There is no user available to respond. Proc
         .slice(this.contextPruning.lastAgenticLoopInnerStartPosition)
         .map((m) => m.toJSON());
 
-      messages = this.contextPruningAtAgenticLoopStart()
+      messages = this.innerLoopStartAtAgenticLoopStart()
         ? [
             this.messages[
               this.contextPruning.lastAgenticLoopStartPosition // Keep the first message as a user message.
@@ -433,9 +435,9 @@ This is an automated system message. There is no user available to respond. Proc
         return res;
       }
       tokenCount = res.value;
-      // console.log("TOKEN COUNT: " + tokenCount);
+      console.log("TOKEN COUNT: " + tokenCount);
 
-      if (tokenCount > this.model.maxTokens()) {
+      if (tokenCount > 61000 /*this.model.maxTokens()*/) {
         const res = this.shiftContextPruning();
         if (res.isErr()) {
           return res;
@@ -443,7 +445,7 @@ This is an automated system message. There is no user available to respond. Proc
       } else {
         return new Ok(messages);
       }
-    } while (tokenCount > this.model.maxTokens());
+    } while (tokenCount > 61000 /*this.model.maxTokens()*/);
 
     return new Err(new SrchdError("agent_loop_overflow_error", "Unreachable"));
   }
