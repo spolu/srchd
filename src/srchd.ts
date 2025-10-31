@@ -17,7 +17,7 @@ import { serve } from "@hono/node-server";
 import app from "./server";
 import { isMistralModel } from "./models/mistral";
 
-export const exitWithError = (err: Err<SrchdError>) => {
+const exitWithError = (err: Err<SrchdError>) => {
   console.error(
     `\x1b[31mError [${err.error.code}] ${err.error.message}\x1b[0m`,
   );
@@ -35,7 +35,7 @@ program
   .version("1.0.0");
 
 // Experiment commands
-export const experimentCmd = program
+const experimentCmd = program
   .command("experiment")
   .description("Manage experiments");
 
