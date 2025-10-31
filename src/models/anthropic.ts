@@ -150,7 +150,7 @@ export class AnthropicModel extends BaseModel {
     return anthropicMessages;
   }
 
-  async run(
+  async internalRun(
     messages: Message[],
     prompt: string,
     toolChoice: ToolChoice,

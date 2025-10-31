@@ -31,23 +31,6 @@ export function isMistralModel(model: string): model is MistralModels {
   ].includes(model);
 }
 
-// Sometimes mistral models send back wrong function names so we validate them here
-function validateName(name: string): { valid: boolean; reason?: string } {
-  if (!(name.length <= 256)) {
-    return {
-      valid: false,
-      reason: `name: ${name} must be less than 256 characters`,
-    };
-  }
-  if (!name.match(/^[a-zA-Z0-9_-]+$/)) {
-    return {
-      valid: false,
-      reason: `name: ${name} must be alphanumeric`,
-    };
-  }
-  return { valid: true };
-}
-
 export class MistralModel extends BaseModel {
   private client: Mistral;
   private model: MistralModels;
@@ -128,110 +111,92 @@ export class MistralModel extends BaseModel {
     return mistralMessages;
   }
 
-  async run(
+  async internalRun(
     messages: Message[],
     prompt: string,
     toolChoice: ToolChoice,
     tools: Tool[],
   ): Promise<Result<Message, SrchdError>> {
-    try {
-      const chatResponse = await this.client.chat.complete({
-        model: this.model,
-        messages: [
-          {
-            role: "system",
-            content: prompt,
-          },
-          ...this.messages(messages),
-        ],
-        toolChoice,
-        tools: tools.map((t) => ({
-          type: "function",
-          function: {
-            name: t.name,
-            description: t.description,
-            parameters: t.inputSchema,
-          },
-        })),
-      });
+    const chatResponse = await this.client.chat.complete({
+      model: this.model,
+      messages: [
+        {
+          role: "system",
+          content: prompt,
+        },
+        ...this.messages(messages),
+      ],
+      toolChoice,
+      tools: tools.map((t) => ({
+        type: "function",
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.inputSchema,
+        },
+      })),
+    });
 
-      const msg = chatResponse.choices[0].message;
-      const finishReason = chatResponse.choices[0].finishReason;
-      if (finishReason !== "stop" && finishReason !== "tool_calls") {
-        return new Err(
-          new SrchdError(
-            "model_error",
-            `Unexpected finish reason: ${finishReason}`,
-            normalizeError(`Unexpected finish reason: ${finishReason}`),
-          ),
-        );
-      }
-
-      const content: (TextContent | ToolUse | Thinking)[] = [];
-
-      if (msg.toolCalls) {
-        for (const toolCall of msg.toolCalls) {
-          const { valid, reason } = validateName(toolCall.function.name);
-          if (valid) {
-            content.push({
-              type: "tool_use",
-              id: toolCall.id ?? "",
-              name: toolCall.function.name,
-              input:
-                typeof toolCall.function.arguments === "string"
-                  ? JSON.parse(toolCall.function.arguments)
-                  : toolCall.function.arguments,
-              provider: null,
-            });
-          } else {
-            console.warn(
-              `Mistral model received invalid tool name: ${toolCall.function.name}.
-              Reason: ${reason}`,
-            );
-          }
-        }
-      }
-
-      if (msg.content) {
-        if (typeof msg.content === "string") {
-          content.push({
-            type: "text",
-            text: msg.content,
-            provider: null,
-          });
-        } else {
-          content.push(
-            ...removeNulls(
-              msg.content.map((c) => {
-                switch (c.type) {
-                  case "text":
-                    return {
-                      type: "text" as const,
-                      text: c.text,
-                      provider: null,
-                    };
-                  default: // Note: thinking is not implemented yet for mistral
-                    return null;
-                }
-              }),
-            ),
-          );
-        }
-      }
-
-      return new Ok({
-        role: "agent",
-        content,
-      });
-    } catch (error) {
+    const msg = chatResponse.choices[0].message;
+    const finishReason = chatResponse.choices[0].finishReason;
+    if (finishReason !== "stop" && finishReason !== "tool_calls") {
       return new Err(
         new SrchdError(
           "model_error",
-          "Failed to run model",
-          normalizeError(error),
+          `Unexpected finish reason: ${finishReason}`,
+          normalizeError(`Unexpected finish reason: ${finishReason}`),
         ),
       );
     }
+
+    const content: (TextContent | ToolUse | Thinking)[] = [];
+
+    if (msg.toolCalls) {
+      for (const toolCall of msg.toolCalls) {
+        content.push({
+          type: "tool_use",
+          id: toolCall.id ?? "",
+          name: toolCall.function.name,
+          input:
+            typeof toolCall.function.arguments === "string"
+              ? JSON.parse(toolCall.function.arguments)
+              : toolCall.function.arguments,
+          provider: null,
+        });
+      }
+    }
+
+    if (msg.content) {
+      if (typeof msg.content === "string") {
+        content.push({
+          type: "text",
+          text: msg.content,
+          provider: null,
+        });
+      } else {
+        content.push(
+          ...removeNulls(
+            msg.content.map((c) => {
+              switch (c.type) {
+                case "text":
+                  return {
+                    type: "text" as const,
+                    text: c.text,
+                    provider: null,
+                  };
+                default: // Note: thinking is not implemented yet for mistral
+                  return null;
+              }
+            }),
+          ),
+        );
+      }
+    }
+
+    return new Ok({
+      role: "agent",
+      content,
+    });
   }
 
   async tokens(

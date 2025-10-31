@@ -1,6 +1,6 @@
 import type { JSONSchema7 as JSONSchema } from "json-schema";
-import { Result } from "../lib/result";
-import { SrchdError } from "../lib/error";
+import { Err, Ok, Result } from "../lib/result";
+import { normalizeError, SrchdError } from "../lib/error";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types";
 
 export type provider = "gemini" | "anthropic" | "openai" | "mistral";
@@ -78,12 +78,26 @@ export abstract class BaseModel {
     this.config = config;
   }
 
-  abstract run(
+  protected abstract internalRun(
     messages: Message[],
     prompt: string,
     toolChoice: ToolChoice,
     tools: Tool[],
   ): Promise<Result<Message, SrchdError>>;
+
+  async run(
+    messages: Message[],
+    prompt: string,
+    toolChoice: ToolChoice,
+    tools: Tool[],
+  ): Promise<Result<Message, SrchdError>> {
+    const res = await this.internalRun(messages, prompt, toolChoice, tools);
+    if (res.isErr()) {
+      return res;
+    } else {
+      return this.validateOutputMessage(res.value);
+    }
+  }
 
   abstract tokens(
     messages: Message[],
@@ -93,4 +107,51 @@ export abstract class BaseModel {
   ): Promise<Result<number, SrchdError>>;
 
   abstract maxTokens(): number;
+
+  validateOutputMessage(message: Message): Result<Message, SrchdError> {
+    let valid = true;
+    let reason = "";
+    if (message.role === "user") {
+      valid = false;
+      reason = "User message not allowed\n";
+    }
+
+    if (message.content.some((c) => c.type === "tool_result")) {
+      valid = false;
+      reason += "Tool result not allowed\n";
+    }
+
+    for (const c of message.content) {
+      if (c.type === "tool_use") {
+        if (!c.name.match(/^[a-zA-Z0-9_-]+$/)) {
+          valid = false;
+          reason += "Tool name must be alphanumeric\n";
+        }
+
+        if (c.name.length > 256) {
+          valid = false;
+          reason += "Tool name must be less than 256 characters\n";
+        }
+
+        try {
+          JSON.parse(c.input);
+        } catch (e) {
+          valid = false;
+          reason += "Tool input must be valid JSON\n";
+        }
+      }
+    }
+
+    if (!valid) {
+      return new Err(
+        new SrchdError(
+          "invalid_message_error",
+          reason,
+          normalizeError(new Error("Invalid message: " + reason)),
+        ),
+      );
+    } else {
+      return new Ok(message);
+    }
+  }
 }
