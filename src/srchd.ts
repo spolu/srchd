@@ -101,19 +101,8 @@ experimentCmd
         ),
       );
     }
-
     const tokenUsage =
       await TokenUsageResource.getExperimentTokenUsage(experiment);
-    if (!tokenUsage) {
-      return exitWithError(
-        new Err(
-          new SrchdError(
-            "not_found_error",
-            `No token usage found for experiment '${options.experiment}'.`,
-          ),
-        ),
-      );
-    }
 
     console.table([tokenUsage]);
   });
