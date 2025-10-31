@@ -223,7 +223,8 @@ export class AnthropicModel extends BaseModel {
         total: message.usage.output_tokens + message.usage.input_tokens,
         input: message.usage.input_tokens,
         output: message.usage.output_tokens,
-        cached: message.usage.cache_read_input_tokens ?? undefined,
+        cached: message.usage.cache_read_input_tokens ?? 0,
+        thinking: 0,
       };
       // console.log(message.usage);
 

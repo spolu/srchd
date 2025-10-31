@@ -298,8 +298,9 @@ export class OpenAIModel extends BaseModel {
             total: response.usage.total_tokens,
             input: response.usage.input_tokens,
             output: response.usage.output_tokens,
-            cached: response.usage.input_tokens_details?.cached_tokens,
-            thinking: response.usage.output_tokens_details?.reasoning_tokens,
+            cached: response.usage.input_tokens_details?.cached_tokens ?? 0,
+            thinking:
+              response.usage.output_tokens_details?.reasoning_tokens ?? 0,
           }
         : undefined;
 

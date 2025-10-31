@@ -28,26 +28,36 @@ export const experiments = sqliteTable(
   (t) => [unique().on(t.name)],
 );
 
-export const tokens = sqliteTable("tokens", {
-  id: integer("id").primaryKey(),
-  created: integer("created", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updated: integer("updated", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  agent: integer("agent")
-    .notNull()
-    .references(() => agents.id),
-  message: integer("message")
-    .notNull()
-    .references(() => messages.id),
-  total: integer("total").notNull(),
-  input: integer("input").notNull(),
-  output: integer("output").notNull(),
-  cached: integer("cached"),
-  thinking: integer("thinking"),
-});
+export const token_usages = sqliteTable(
+  "token_usages",
+  {
+    id: integer("id").primaryKey(),
+    created: integer("created", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated: integer("updated", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    experiment: integer("experiment")
+      .notNull()
+      .references(() => experiments.id),
+    agent: integer("agent")
+      .notNull()
+      .references(() => agents.id),
+    message: integer("message")
+      .notNull()
+      .references(() => messages.id),
+    total: integer("total").notNull(),
+    input: integer("input").notNull(),
+    output: integer("output").notNull(),
+    cached: integer("cached").notNull(),
+    thinking: integer("thinking").notNull(),
+  },
+  (t) => [
+    index("token_usages_experiment_idx").on(t.experiment),
+    index("token_usages_agent_idx").on(t.agent),
+  ],
+);
 
 export const agents = sqliteTable(
   "agents",

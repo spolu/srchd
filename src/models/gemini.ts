@@ -178,8 +178,8 @@ export class GeminiModel extends BaseModel {
               total: response.usageMetadata.totalTokenCount,
               input: response.usageMetadata.promptTokenCount,
               output: response.usageMetadata.candidatesTokenCount,
-              cached: response.usageMetadata.cachedContentTokenCount,
-              thinking: response.usageMetadata.thoughtsTokenCount,
+              cached: response.usageMetadata.cachedContentTokenCount ?? 0,
+              thinking: response.usageMetadata.thoughtsTokenCount ?? 0,
             }
           : undefined;
 

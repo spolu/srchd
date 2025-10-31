@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8c871084-0fc7-4430-b8fa-73bedb25c510",
+  "id": "e2803dd3-230c-4064-945b-569e4e7e9f30",
   "prevId": "f65aff28-e150-4641-b639-776049ffd2a5",
   "tables": {
     "agents": {
@@ -787,8 +787,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "tokens": {
-      "name": "tokens",
+    "token_usages": {
+      "name": "token_usages",
       "columns": {
         "id": {
           "name": "id",
@@ -806,6 +806,13 @@
         },
         "updated": {
           "name": "updated",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "experiment": {
+          "name": "experiment",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -850,22 +857,50 @@
           "name": "cached",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "thinking": {
           "name": "thinking",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "token_usages_experiment_idx": {
+          "name": "token_usages_experiment_idx",
+          "columns": [
+            "experiment"
+          ],
+          "isUnique": false
+        },
+        "token_usages_agent_idx": {
+          "name": "token_usages_agent_idx",
+          "columns": [
+            "agent"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
-        "tokens_agent_agents_id_fk": {
-          "name": "tokens_agent_agents_id_fk",
-          "tableFrom": "tokens",
+        "token_usages_experiment_experiments_id_fk": {
+          "name": "token_usages_experiment_experiments_id_fk",
+          "tableFrom": "token_usages",
+          "tableTo": "experiments",
+          "columnsFrom": [
+            "experiment"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "token_usages_agent_agents_id_fk": {
+          "name": "token_usages_agent_agents_id_fk",
+          "tableFrom": "token_usages",
           "tableTo": "agents",
           "columnsFrom": [
             "agent"
@@ -876,9 +911,9 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "tokens_message_messages_id_fk": {
-          "name": "tokens_message_messages_id_fk",
-          "tableFrom": "tokens",
+        "token_usages_message_messages_id_fk": {
+          "name": "token_usages_message_messages_id_fk",
+          "tableFrom": "token_usages",
           "tableTo": "messages",
           "columnsFrom": [
             "message"

@@ -30,7 +30,7 @@ import { GeminiModel, GeminiModels } from "./models/gemini";
 import { OpenAIModel, OpenAIModels } from "./models/openai";
 import { createComputerServer } from "./tools/computer";
 import { MistralModel, MistralModels } from "./models/mistral";
-import { TokensResource } from "./resources/tokens";
+import { TokenUsageResource } from "./resources/token_usage";
 
 export class Runner {
   private experiment: ExperimentResource;
@@ -534,7 +534,12 @@ ${this.agent.toJSON().system}`;
     this.messages.push(agentMessage);
 
     if (tokenUsage) {
-      await TokensResource.create(this.agent, agentMessage, tokenUsage);
+      await TokenUsageResource.create(
+        this.agent,
+        this.experiment,
+        agentMessage,
+        tokenUsage,
+      );
     } else {
       console.log(
         `WARNING: Skipping token count for agent ${this.agent.toJSON().name}`,

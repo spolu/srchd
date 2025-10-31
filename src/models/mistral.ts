@@ -167,6 +167,8 @@ export class MistralModel extends BaseModel {
               total: usage.totalTokens,
               input: usage.promptTokens,
               output: usage.completionTokens,
+              cached: 0,
+              thinking: 0,
             };
 
       const msg = chatResponse.choices[0].message;

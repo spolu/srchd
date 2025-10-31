@@ -16,8 +16,8 @@ export type TokenUsage = {
   total: number;
   input: number;
   output: number;
-  cached?: number;
-  thinking?: number;
+  cached: number;
+  thinking: number;
 };
 
 export interface TextContent {
