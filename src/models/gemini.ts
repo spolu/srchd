@@ -97,7 +97,7 @@ export class GeminiModel extends BaseModel {
     return contents;
   }
 
-  async internalRun(
+  protected async internalRun(
     messages: Message[],
     prompt: string,
     toolChoice: ToolChoice,

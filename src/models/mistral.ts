@@ -111,7 +111,7 @@ export class MistralModel extends BaseModel {
     return mistralMessages;
   }
 
-  async internalRun(
+  protected async internalRun(
     messages: Message[],
     prompt: string,
     toolChoice: ToolChoice,

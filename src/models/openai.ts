@@ -155,7 +155,7 @@ export class OpenAIModel extends BaseModel {
     }
   }
 
-  async internalRun(
+  protected async internalRun(
     messages: Message[],
     prompt: string,
     toolChoice: ToolChoice,
