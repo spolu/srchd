@@ -10,13 +10,16 @@ export class TokenUsageResource {
   private data: InferSelectModel<typeof token_usages>;
   agent: AgentResource;
   message: MessageResource;
+  experiment: ExperimentResource;
 
   private constructor(
     data: InferSelectModel<typeof token_usages>,
+    experiment: ExperimentResource,
     agent: AgentResource,
     message: MessageResource,
   ) {
     this.data = data;
+    this.experiment = experiment;
     this.agent = agent;
     this.message = message;
   }
@@ -74,8 +77,8 @@ export class TokenUsageResource {
   }
 
   static async create(
-    agent: AgentResource,
     experiment: ExperimentResource,
+    agent: AgentResource,
     message: MessageResource,
     tokenUsage: TokenUsage,
     options?: { tx?: Tx },
@@ -85,22 +88,29 @@ export class TokenUsageResource {
       .insert(token_usages)
       .values({
         experiment: experiment.toJSON().id,
-        message: message.toJSON().id,
         agent: agent.toJSON().id,
+        message: message.toJSON().id,
         ...tokenUsage,
       })
       .returning();
 
-    return new TokenUsageResource(created, agent, message);
+    return new TokenUsageResource(created, experiment, agent, message);
   }
 
   id(): number {
     return this.data.id;
   }
 
-  toJSON(): { id: number; usage: TokenUsage; agent: number; message: number } {
+  toJSON(): {
+    id: number;
+    usage: TokenUsage;
+    experiment: number;
+    agent: number;
+    message: number;
+  } {
     return {
       id: this.data.id,
+      experiment: this.data.experiment,
       agent: this.data.agent,
       message: this.data.message,
       usage: {

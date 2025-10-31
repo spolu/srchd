@@ -535,8 +535,8 @@ ${this.agent.toJSON().system}`;
 
     if (tokenUsage) {
       await TokenUsageResource.create(
-        this.agent,
         this.experiment,
+        this.agent,
         agentMessage,
         tokenUsage,
       );
