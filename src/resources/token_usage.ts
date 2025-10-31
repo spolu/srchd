@@ -7,19 +7,6 @@ import { TokenUsage } from "../models/index";
 import { ExperimentResource } from "./experiment";
 
 export class TokenUsageResource {
-  experiment: ExperimentResource;
-  agent: AgentResource;
-  message: MessageResource;
-  private constructor(
-    experiment: ExperimentResource,
-    agent: AgentResource,
-    message: MessageResource,
-  ) {
-    this.experiment = experiment;
-    this.agent = agent;
-    this.message = message;
-  }
-
   static async getExperimentTokenUsage(
     experiment: ExperimentResource,
   ): Promise<TokenUsage> {
