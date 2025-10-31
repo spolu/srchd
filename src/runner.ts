@@ -37,7 +37,10 @@ export class Runner {
   private agent: AgentResource;
   private mcpClients: Client[];
   private model: BaseModel;
-  private lastAgenticLoopStartPosition: number; // last "agentic loop start position" used
+  private contextPruning: {
+    lastAgenticLoopStartPosition: number;
+    lastAgenticLoopInnerStartPosition: number;
+  };
   private messages: MessageResource[]; // ordered by position asc
 
   private constructor(
@@ -51,7 +54,10 @@ export class Runner {
     this.mcpClients = mcpClients;
     this.model = model;
     this.messages = [];
-    this.lastAgenticLoopStartPosition = 0;
+    this.contextPruning = {
+      lastAgenticLoopStartPosition: 0,
+      lastAgenticLoopInnerStartPosition: 0,
+    };
   }
 
   public static async builder(
@@ -328,9 +334,17 @@ This is an automated system message. There is no user available to respond. Proc
     return new Ok(message);
   }
 
-  shiftLastAgenticLoopStartPosition(): Result<void, SrchdError> {
+  private contextPruningAtAgenticLoopStart(): boolean {
+    return (
+      this.contextPruning.lastAgenticLoopInnerStartPosition ===
+      this.contextPruning.lastAgenticLoopStartPosition
+    );
+  }
+
+  shiftContextPruning(): Result<void, SrchdError> {
     assert(
-      this.lastAgenticLoopStartPosition < this.messages.length,
+      this.contextPruning.lastAgenticLoopInnerStartPosition <
+        this.messages.length,
       "lastAgenticLoopStartPosition is out of bounds.",
     );
 
@@ -338,11 +352,19 @@ This is an automated system message. There is no user available to respond. Proc
     //   "this.lastAgenticLoopStartPosition: " + this.lastAgenticLoopStartPosition
     // );
 
-    let idx = this.lastAgenticLoopStartPosition + 1;
+    let idx = this.contextPruningAtAgenticLoopStart()
+      ? this.contextPruning.lastAgenticLoopInnerStartPosition + 1
+      : this.contextPruning.lastAgenticLoopInnerStartPosition;
+
+    let foundNewAgenticLoop = false;
     for (; idx < this.messages.length; idx++) {
       const m = this.messages[idx].toJSON();
+      if (m.role === "agent") {
+        break;
+      }
       if (m.role === "user" && m.content.every((c) => c.type === "text")) {
         // Found the next user message, which marks the start of the next agentic loop.
+        foundNewAgenticLoop = true;
         break;
       }
     }
@@ -358,7 +380,11 @@ This is an automated system message. There is no user available to respond. Proc
       );
     }
 
-    this.lastAgenticLoopStartPosition = idx;
+    if (foundNewAgenticLoop) {
+      this.contextPruning.lastAgenticLoopStartPosition = idx;
+    }
+
+    this.contextPruning.lastAgenticLoopInnerStartPosition = idx;
     return new Ok(undefined);
   }
 
@@ -376,9 +402,17 @@ This is an automated system message. There is no user available to respond. Proc
     let tokenCount = 0;
     do {
       // Take messages from this.lastAgenticLoopStartPosition to the end.
-      const messages = [...this.messages]
-        .slice(this.lastAgenticLoopStartPosition)
+      let messages = [...this.messages]
+        .slice(this.contextPruning.lastAgenticLoopInnerStartPosition)
         .map((m) => m.toJSON());
+
+      messages = this.contextPruningAtAgenticLoopStart()
+        ? [
+            this.messages[
+              this.contextPruning.lastAgenticLoopStartPosition // Keep the first message as a user message.
+            ].toJSON(),
+          ].concat(messages)
+        : messages;
 
       const res = await this.model.tokens(
         messages,
@@ -402,7 +436,7 @@ This is an automated system message. There is no user available to respond. Proc
       // console.log("TOKEN COUNT: " + tokenCount);
 
       if (tokenCount > this.model.maxTokens()) {
-        const res = this.shiftLastAgenticLoopStartPosition();
+        const res = this.shiftContextPruning();
         if (res.isErr()) {
           return res;
         }
