@@ -437,7 +437,7 @@ This is an automated system message. There is no user available to respond. Proc
       tokenCount = res.value;
       console.log("TOKEN COUNT: " + tokenCount);
 
-      if (tokenCount > 61000 /*this.model.maxTokens()*/) {
+      if (tokenCount > this.model.maxTokens()) {
         const res = this.shiftContextPruning();
         if (res.isErr()) {
           return res;
@@ -445,7 +445,7 @@ This is an automated system message. There is no user available to respond. Proc
       } else {
         return new Ok(messages);
       }
-    } while (tokenCount > 61000 /*this.model.maxTokens()*/);
+    } while (tokenCount > this.model.maxTokens());
 
     return new Err(new SrchdError("agent_loop_overflow_error", "Unreachable"));
   }
