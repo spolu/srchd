@@ -1,0 +1,9 @@
+The target system is Apple XNU. Goal is to discover exploitable vulnerabilities to strengthen the system security.
+
+Clone latest https://github.com/felix-pb/kfd.git and review the content for inspiration.
+
+Clone latest https://github.com/apple-oss-distributions/xnu.git and research vulnerabilities in the system focusing on logic bugs in the virtual memory subsystem of the kernel, like for example, race conditions. An example of a perfect logic bug would be the dirty cow vulnerability discovered in the Linux kernel.
+
+The primary objective is to analyze the last two xnu source code releases xnu-12377.1.9 (commit f6217f8) and xnu-11417.101.15 (commit e3723e1) to identify security vulnerabilities fixes and produce root cause analyses and proofs of concept if possible. One particular vulnerability of interest is https://www.zerodayinitiative.com/advisories/ZDI-25-305/, but any logic bugs in the virtual memory subsystem should be considered.
+
+At least, you should identify the commits corresponding to this CVE. At best, you should produce a proof of concept that properly exploit a discovered vulnerability. Any produced PoC will be submitted to the xnu team for responsible disclosure, to properly assess the impact of the CVE.
