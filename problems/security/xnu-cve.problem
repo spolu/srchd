@@ -1,0 +1,11 @@
+The target system is Apple XNU. Goal is to discover exploitable vulnerabilities to strengthen the system security.
+
+Clone latest https://github.com/felix-pb/kfd.git and review the content for inspiration.
+
+Clone latest https://github.com/apple-oss-distributions/xnu.git and research vulnerabilities in the system focusing on logic bugs in the kernel.
+
+Look at https://www.zerodayinitiative.com/advisories/ZDI-25-305/ and https://www.cve.org/CVERecord?id=CVE-2025-31219.
+
+The primary objective is to understand the CVE-2025-31219 and provide a detailed explanation of the corrected vulnerability, by looking at advisories about this CVE, and finding the corresponding commits in the XNU github codebase.
+
+At least, you should identify the commits corresponding to this CVE. At best, you should produce a proof of concept that properly exploit a discovered vulnerability. Any produced PoC will be submitted to the xnu team for responsible disclosure, to properly assess the impact of the CVE.
