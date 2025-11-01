@@ -1,0 +1,3 @@
+The target system is world-chain, Worldcoin's blockchain. Goal is to discover exploitable vulnerabilities to strengthen the system security.
+
+Clone latest https://github.com/worldcoin/world-chain.git and research vulnerabilities allowing remote exploitation, crash or DoS of nodes, or impacting the blockchain integrity. The reproducible proof of concepts produced will be submitted to the Worldcoin team for responsible disclosure.

@@ -570,15 +570,15 @@ ${this.agent.toJSON().system}`;
     this.messages.push(agentMessage);
 
     if (tokenUsage) {
-      await TokenUsageResource.create(
+      await TokenUsageResource.logUsage(
         this.experiment,
         this.agent,
         agentMessage,
         tokenUsage,
       );
     } else {
-      console.log(
-        `WARNING: Skipping token count for agent ${this.agent.toJSON().name}`,
+      console.warn(
+        `WARNING: Skipping token usage log for agent ${this.agent.toJSON().name}`,
       );
     }
 
