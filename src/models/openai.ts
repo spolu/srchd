@@ -1,5 +1,12 @@
 import { ResponseInputItem } from "openai/resources/responses/responses";
-import { BaseModel, ModelConfig, Message, Tool, ToolChoice } from "./index";
+import {
+  BaseModel,
+  ModelConfig,
+  Message,
+  Tool,
+  ToolChoice,
+  TokenUsage,
+} from "./index";
 
 import OpenAI from "openai";
 import { normalizeError, SrchdError } from "../lib/error";
@@ -160,7 +167,9 @@ export class OpenAIModel extends BaseModel {
     prompt: string,
     toolChoice: ToolChoice,
     tools: Tool[],
-  ): Promise<Result<Message, SrchdError>> {
+  ): Promise<
+    Result<{ message: Message; tokenUsage?: TokenUsage }, SrchdError>
+  > {
     try {
       const input = this.messages(messages);
       // console.log("----------------------------------------------");
@@ -284,9 +293,23 @@ export class OpenAIModel extends BaseModel {
 
       // console.log(response.usage);
 
+      const tokenUsage = response.usage
+        ? {
+            total: response.usage.total_tokens,
+            input: response.usage.input_tokens,
+            output: response.usage.output_tokens,
+            cached: response.usage.input_tokens_details?.cached_tokens ?? 0,
+            thinking:
+              response.usage.output_tokens_details?.reasoning_tokens ?? 0,
+          }
+        : undefined;
+
       return new Ok({
-        role: "agent",
-        content,
+        message: {
+          role: "agent",
+          content,
+        },
+        tokenUsage,
       });
     } catch (error) {
       return new Err(

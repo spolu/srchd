@@ -15,6 +15,7 @@
     "@anthropic-ai/sdk": "^0.57.0",
     "@google/genai": "^1.13.0",
     "@hono/node-server": "^1.19.1",
+    "@mistralai/mistralai": "^1.10.0",
     "@modelcontextprotocol/sdk": "^1.17.1",
     "@types/json-schema": "^7.0.15",
     "better-sqlite3": "^12.2.0",

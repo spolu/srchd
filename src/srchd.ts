@@ -5,6 +5,7 @@ import { readFileContent } from "./lib/fs";
 import { SrchdError } from "./lib/error";
 import { Err } from "./lib/result";
 import { ExperimentResource } from "./resources/experiment";
+import { TokenUsageResource } from "./resources/token_usage";
 import { AgentResource } from "./resources/agent";
 import { Runner } from "./runner";
 import { newID4, removeNulls } from "./lib/utils";
@@ -14,6 +15,7 @@ import { isOpenAIModel } from "./models/openai";
 import { isGeminiModel } from "./models/gemini";
 import { serve } from "@hono/node-server";
 import app from "./server";
+import { isMistralModel } from "./models/mistral";
 
 const exitWithError = (err: Err<SrchdError>) => {
   console.error(
@@ -81,6 +83,28 @@ experimentCmd
         return e;
       }),
     );
+  });
+
+experimentCmd
+  .command("token-usage")
+  .description("Show token usage for an experiment")
+  .requiredOption("-e, --experiment <experiment>", "Experiment name")
+  .action(async (options) => {
+    const experiment = await ExperimentResource.findByName(options.experiment);
+    if (!experiment) {
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `Experiment '${options.experiment}' not found.`,
+          ),
+        ),
+      );
+    }
+    const tokenUsage =
+      await TokenUsageResource.getExperimentTokenUsage(experiment);
+
+    console.table([tokenUsage]);
   });
 
 // Agent commands
@@ -169,7 +193,7 @@ agentCmd
         `Creating agent: ${name} for experiment: ${options.experiment}`,
       );
       const provider = options.provider || "anthropic";
-      const model = options.model || "claude-sonnet-4-20250514";
+      const model = options.model || "claude-sonnet-4-5-20250929";
       const thinking = options.thinking || "low";
 
       if (!isProvider(provider)) {
@@ -187,7 +211,8 @@ agentCmd
         !(
           isAnthropicModel(model) ||
           isOpenAIModel(model) ||
-          isGeminiModel(model)
+          isGeminiModel(model) ||
+          isMistralModel(model)
         )
       ) {
         return exitWithError(
