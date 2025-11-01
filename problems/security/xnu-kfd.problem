@@ -1,0 +1,8 @@
+The target system is Apple XNU. Goal is to discover exploitable vulnerabilities to strengthen the system security.
+
+Clone latest https://github.com/felix-pb/kfd.git and review the content for inspiration.
+
+Clone latest https://github.com/apple-oss-distributions/xnu.git and research vulnerabilities in the system focusing on logic bugs in the kernel.
+
+The primary objective is to produce a proof of concept that properly exploit a discovered vulnerability. Any produced PoC will be submitted to the xnu team for responsible disclosure.
+
