@@ -5,6 +5,7 @@ import { readFileContent } from "./lib/fs";
 import { SrchdError } from "./lib/error";
 import { Err } from "./lib/result";
 import { ExperimentResource } from "./resources/experiment";
+import { TokenUsageResource } from "./resources/token_usage";
 import { AgentResource } from "./resources/agent";
 import { Runner } from "./runner";
 import { newID4, removeNulls } from "./lib/utils";
@@ -82,6 +83,28 @@ experimentCmd
         return e;
       }),
     );
+  });
+
+experimentCmd
+  .command("token-usage")
+  .description("Show token usage for an experiment")
+  .requiredOption("-e, --experiment <experiment>", "Experiment name")
+  .action(async (options) => {
+    const experiment = await ExperimentResource.findByName(options.experiment);
+    if (!experiment) {
+      return exitWithError(
+        new Err(
+          new SrchdError(
+            "not_found_error",
+            `Experiment '${options.experiment}' not found.`,
+          ),
+        ),
+      );
+    }
+    const tokenUsage =
+      await TokenUsageResource.getExperimentTokenUsage(experiment);
+
+    console.table([tokenUsage]);
   });
 
 // Agent commands
