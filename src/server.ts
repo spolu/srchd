@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import sanitizeHtml from "sanitize-html";
+import { marked } from "marked";
 import { ExperimentResource } from "./resources/experiment";
 import { AgentResource } from "./resources/agent";
 import { PublicationResource } from "./resources/publication";
@@ -15,6 +16,53 @@ const sanitizeText = (value: unknown): string => {
     textFilter: (text: string) =>
       text.replace(/"/g, "&quot;").replace(/'/g, "&#39;"),
   });
+};
+
+const sanitizeMarkdown = (value: unknown): string => {
+  const input = value === null || value === undefined ? "" : String(value);
+  try {
+    const html = marked.parse(input, { async: false }) as string;
+    return sanitizeHtml(html, {
+      allowedTags: [
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "p",
+        "br",
+        "hr",
+        "ul",
+        "ol",
+        "li",
+        "strong",
+        "em",
+        "u",
+        "s",
+        "del",
+        "code",
+        "pre",
+        "blockquote",
+        "a",
+        "table",
+        "thead",
+        "tbody",
+        "tr",
+        "th",
+        "td",
+      ],
+      allowedAttributes: {
+        a: ["href", "title"],
+        code: ["class"],
+        pre: ["class"],
+      },
+      allowedSchemes: ["http", "https", "mailto"],
+    });
+  } catch (error) {
+    // Fallback to plain text sanitization if markdown parsing fails
+    return sanitizeText(input);
+  }
 };
 
 const safeScriptJSON = (value: unknown): string =>
@@ -147,6 +195,87 @@ const baseTemplate = (title: string, content: string, breadcrumb?: string) => `
     .content {
       white-space: pre-wrap;
       margin-top: 10px;
+    }
+    .markdown-content {
+      white-space: normal;
+      line-height: 1.8;
+    }
+    .markdown-content h1,
+    .markdown-content h2,
+    .markdown-content h3,
+    .markdown-content h4,
+    .markdown-content h5,
+    .markdown-content h6 {
+      margin-top: 1.5em;
+      margin-bottom: 0.5em;
+      color: #333;
+    }
+    .markdown-content h1 { font-size: 1.8em; border-bottom: 2px solid #ddd; padding-bottom: 0.3em; }
+    .markdown-content h2 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+    .markdown-content h3 { font-size: 1.3em; }
+    .markdown-content h4 { font-size: 1.1em; }
+    .markdown-content p {
+      margin: 1em 0;
+    }
+    .markdown-content ul,
+    .markdown-content ol {
+      margin: 1em 0;
+      padding-left: 2em;
+    }
+    .markdown-content li {
+      margin: 0.5em 0;
+    }
+    .markdown-content code {
+      background: #f4f4f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+    .markdown-content pre {
+      background: #f4f4f4;
+      padding: 12px;
+      border-radius: 4px;
+      overflow-x: auto;
+      margin: 1em 0;
+    }
+    .markdown-content pre code {
+      background: none;
+      padding: 0;
+    }
+    .markdown-content blockquote {
+      border-left: 4px solid #ddd;
+      padding-left: 1em;
+      margin: 1em 0;
+      color: #666;
+      font-style: italic;
+    }
+    .markdown-content a {
+      color: #0066cc;
+      text-decoration: none;
+    }
+    .markdown-content a:hover {
+      text-decoration: underline;
+    }
+    .markdown-content table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 1em 0;
+    }
+    .markdown-content th,
+    .markdown-content td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    .markdown-content th {
+      background: #f4f4f4;
+      font-weight: bold;
+    }
+    .markdown-content hr {
+      border: none;
+      border-top: 2px solid #ddd;
+      margin: 2em 0;
     }
     .reason-badge {
       display: inline-block;
@@ -801,7 +930,7 @@ app.get("/experiments/:id/publications/:pubId", async (c) => {
     </div>
     <div class="card">
       <h3>Content</h3>
-      <div class="content">${sanitizeText(pubData.content ?? "")}</div>
+      <div class="content markdown-content">${sanitizeMarkdown(pubData.content ?? "")}</div>
     </div>
     ${
       pubData.citations.from.length > 0
@@ -869,7 +998,7 @@ app.get("/experiments/:id/publications/:pubId", async (c) => {
           review.content
             ? `
         <div class="card">
-          <div class="content">${sanitizeText(
+          <div class="content markdown-content">${sanitizeMarkdown(
             review.content || "(empty)",
           )}</div>
         </div>
